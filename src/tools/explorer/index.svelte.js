@@ -38,10 +38,6 @@ class ExplorerTool extends LeftTool {
     // Ne pas changer shouldBeVisible, laisser le toggle manuel
   }
 
-  isMyTab(tabId) {
-    return tabId.startsWith(`${this.id}-`)
-  }
-
   destroy() {
     super.destroy()
   }

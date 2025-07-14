@@ -6,8 +6,6 @@ export class Tool {
     this.position = position
     this.active = $state(false)
     this.shouldBeVisible = $state(false)
-    this.wasUserOpened = $state(false)
-    this.autoManaged = false // Flag pour indiquer si l'outil est géré automatiquement
     this.component = null
     this.componentProps = {}
     this.wasActiveBeforeUnregister = false
@@ -23,7 +21,6 @@ export class Tool {
     this.active = true
     this.shouldBeVisible = true // Synchroniser avec l'activation manuelle
     this.wasActiveBeforeUnregister = false // Reset quand activé manuellement
-    this.wasUserOpened = true
   }
 
   deactivate() {

@@ -60,7 +60,7 @@ class ToolManagerSvelte {
 
   async loadTools() {
     try {
-      const toolModules = import.meta.glob('../tools/**/index.js')
+      const toolModules = import.meta.glob('../tools/**/index.svelte.js')
       
       for (const path in toolModules) {
         try {
