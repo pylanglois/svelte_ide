@@ -28,20 +28,6 @@ export class Tool {
     this.shouldBeVisible = false // Synchroniser avec la désactivation
   }
 
-  // Nouvelle méthode pour sauvegarder l'état avant désenregistrement
-  saveActiveState() {
-    this.wasActiveBeforeUnregister = this.active
-  }
-
-  // Nouvelle méthode pour restaurer l'état après réenregistrement
-  restoreActiveState() {
-    if (this.wasActiveBeforeUnregister) {
-      this.wasActiveBeforeUnregister = false
-      return true // Indique qu'il faut activer l'outil
-    }
-    return false // Pas d'état actif à restaurer
-  }
-
   // Méthode pour déterminer si l'outil devrait être visible selon le contexte
   updateVisibility(activeTabId) {
     // Par défaut, ne change pas la visibilité
@@ -50,18 +36,6 @@ export class Tool {
 
   setToolManager(toolManager) {
     this.toolManager = toolManager
-  }
-
-  registerDynamicTool(tool) {
-    if (this.toolManager) {
-      this.toolManager.registerTool(tool)
-    }
-  }
-
-  unregisterDynamicTool(toolId) {
-    if (this.toolManager) {
-      this.toolManager.unregisterTool(toolId)
-    }
   }
 
   initialize() {

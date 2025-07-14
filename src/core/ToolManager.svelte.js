@@ -14,19 +14,11 @@ class ToolManagerSvelte {
     
     tool.setToolManager(this)
     tool.initialize()
-    
-    const shouldRestore = tool.restoreActiveState()
-    
+
     if (tool.position === 'left') {
       ideStore.addLeftTool(tool)
-      if (shouldRestore) {
-        ideStore.toggleLeftPanel(tool.id)
-      }
     } else if (tool.position === 'right') {
       ideStore.addRightTool(tool)
-      if (shouldRestore) {
-        ideStore.toggleRightPanel(tool.id)
-      }
     }
   }
 
