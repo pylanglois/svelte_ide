@@ -29,7 +29,7 @@ class ToolManagerSvelte {
       return
     }
 
-    tool.saveActiveState()
+    // tool.saveActiveState()
     tool.destroy()
     
     if (tool.position === 'left') {
@@ -42,13 +42,13 @@ class ToolManagerSvelte {
     ideStore.addLog(`Tool ${tool.name} unregistered`, 'info')
   }
 
-  getTool(toolId) {
-    return this.registeredTools.get(toolId)
-  }
-
-  getAllTools() {
-    return Array.from(this.registeredTools.values())
-  }
+  // getTool(toolId) {
+  //   return this.registeredTools.get(toolId)
+  // }
+  //
+  // getAllTools() {
+  //   return Array.from(this.registeredTools.values())
+  // }
 
   async loadTools() {
     try {

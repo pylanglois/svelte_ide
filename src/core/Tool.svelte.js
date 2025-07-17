@@ -4,12 +4,12 @@ export class Tool {
     this.name = name
     this.icon = icon
     this.position = position
-    this.active = $state(false)
-    this.shouldBeVisible = $state(false)
+    // this.active = $state(false)
+    // this.shouldBeVisible = $state(false)
     this.component = null
     this.componentProps = {}
-    this.wasActiveBeforeUnregister = false
-    this.toolManager = null
+    // this.wasActiveBeforeUnregister = false
+    // this.toolManager = null
   }
 
   setComponent(component, props = {}) {
@@ -17,16 +17,16 @@ export class Tool {
     this.componentProps = props
   }
 
-  activate() {
-    this.active = true
-    this.shouldBeVisible = true // Synchroniser avec l'activation manuelle
-    this.wasActiveBeforeUnregister = false // Reset quand activé manuellement
-  }
-
-  deactivate() {
-    this.active = false
-    this.shouldBeVisible = false // Synchroniser avec la désactivation
-  }
+  // activate() {
+  //   this.active = true
+  //   this.shouldBeVisible = true // Synchroniser avec l'activation manuelle
+  //   this.wasActiveBeforeUnregister = false // Reset quand activé manuellement
+  // }
+  //
+  // deactivate() {
+  //   this.active = false
+  //   this.shouldBeVisible = false // Synchroniser avec la désactivation
+  // }
 
   // Méthode pour déterminer si l'outil devrait être visible selon le contexte
   updateVisibility(activeTabId) {
@@ -34,9 +34,9 @@ export class Tool {
     // Les sous-classes peuvent redéfinir cette méthode
   }
 
-  setToolManager(toolManager) {
-    this.toolManager = toolManager
-  }
+  // setToolManager(toolManager) {
+  //   this.toolManager = toolManager
+  // }
 
   initialize() {
   }

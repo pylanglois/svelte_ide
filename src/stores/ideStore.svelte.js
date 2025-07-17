@@ -55,97 +55,87 @@ class IDEStore {
   removeRightTool(toolId) {
     const index = this.rightTools.findIndex(tool => tool.id === toolId)
     if (index !== -1) {
-      const tool = this.rightTools[index]
-      
-      // Si l'outil était actif, fermer le panneau
-      if (tool.active) {
-        this.rightPanelVisible = false
-      }
-      
       this.rightTools.splice(index, 1)
-      
-      // Mettre à jour la visibilité du panneau après suppression
-      this.rightPanelVisible = this.rightTools.some(t => t.active)
     }
   }
 
   toggleLeftPanel(toolId = null) {
-    if (toolId) {
-      const tool = this.leftTools.find(t => t.id === toolId)
-      if (tool) {
-        const wasActive = tool.active
-        
-        this.leftTools.forEach(t => {
-          if (t.id !== toolId && t.active) {
-            t.active = false
-            t.deactivate()
-          }
-        })
-        
-        tool.active = !wasActive
-        if (tool.active) {
-          tool.activate()
-          this.activeLeftTool = tool
-        } else {
-          tool.deactivate()
-          this.activeLeftTool = null
-        }
-        
-        this.leftPanelVisible = this.leftTools.some(t => t.active)
-      }
-    } else {
-      this.leftPanelVisible = !this.leftPanelVisible
-    }
+    // if (toolId) {
+    //   const tool = this.leftTools.find(t => t.id === toolId)
+    //   if (tool) {
+    //     const wasActive = tool.active
+    //
+    //     this.leftTools.forEach(t => {
+    //       if (t.id !== toolId && t.active) {
+    //         t.active = false
+    //         t.deactivate()
+    //       }
+    //     })
+    //
+    //     tool.active = !wasActive
+    //     if (tool.active) {
+    //       tool.activate()
+    //       this.activeLeftTool = tool
+    //     } else {
+    //       tool.deactivate()
+    //       this.activeLeftTool = null
+    //     }
+    //
+    //     this.leftPanelVisible = this.leftTools.some(t => t.active)
+    //   }
+    // } else {
+    //   this.leftPanelVisible = !this.leftPanelVisible
+    // }
   }
 
   toggleRightPanel(toolId = null) {
-    if (toolId) {
-      const tool = this.rightTools.find(t => t.id === toolId)
-      if (tool) {
-        const wasActive = tool.active
-        
-        // Désactiver tous les autres outils
-        this.rightTools.forEach(t => {
-          if (t.id !== toolId && t.active) {
-            t.active = false
-            t.deactivate()
-          }
-        })
-        
-        // Basculer l'état de l'outil sélectionné
-        tool.active = !wasActive
-        if (tool.active) {
-          tool.activate()
-          this.activeRightTool = tool
-        } else {
-          tool.deactivate()
-          this.activeRightTool = null
-        }
-        
-        // Mettre à jour la visibilité du panneau
-        this.rightPanelVisible = this.rightTools.some(t => t.active)
-      }
-    } else {
-      // Basculer simplement la visibilité du panneau
-      this.rightPanelVisible = !this.rightPanelVisible
-    }
+    // if (toolId) {
+    //   const tool = this.rightTools.find(t => t.id === toolId)
+    //   if (tool) {
+    //     const wasActive = tool.active
+    //
+    //     // Désactiver tous les autres outils
+    //     this.rightTools.forEach(t => {
+    //       if (t.id !== toolId && t.active) {
+    //         t.active = false
+    //         t.deactivate()
+    //       }
+    //     })
+    //
+    //     // Basculer l'état de l'outil sélectionné
+    //     tool.active = !wasActive
+    //     if (tool.active) {
+    //       tool.activate()
+    //       this.activeRightTool = tool
+    //     } else {
+    //       tool.deactivate()
+    //       this.activeRightTool = null
+    //     }
+    //
+    //     // Mettre à jour la visibilité du panneau
+    //     this.rightPanelVisible = this.rightTools.some(t => t.active)
+    //   }
+    // } else {
+    //   // Basculer simplement la visibilité du panneau
+    //   this.rightPanelVisible = !this.rightPanelVisible
+    // }
   }
 
   toggleConsolePanel() {
     this.consolePanelVisible = !this.consolePanelVisible
   }
 
-  // Méthodes pour les items génériques de la barre d'outils droite
-  addRightToolbarItem(item) {
-    this.rightToolbarItems.push(item)
-  }
+  // // Méthodes pour les items génériques de la barre d'outils droite
+  // addRightToolbarItem(item) {
+  //   this.rightToolbarItems.push(item)
+  // }
 
-  removeRightToolbarItem(itemId) {
-    const index = this.rightToolbarItems.findIndex(item => item.id === itemId)
-    if (index !== -1) {
-      this.rightToolbarItems.splice(index, 1)
-    }
-  }
+  // removeRightToolbarItem(itemId) {
+  //   const index = this.rightToolbarItems.findIndex(item => item.id === itemId)
+  //   if (index !== -1) {
+  //     this.rightToolbarItems.splice(index, 1)
+  //   }
+  // }
 
   addConsoleTab(title) {
     let consoleTab = this.consoleTabs.find(tab => tab.title === title)

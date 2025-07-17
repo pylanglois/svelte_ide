@@ -3,12 +3,6 @@
 
   function handleToolClick(tool) {
     ideStore.toggleLeftPanel(tool.id)
-    
-    if (tool.active) {
-      ideStore.setStatusMessage(`${tool.name} activé`)
-    } else {
-      ideStore.setStatusMessage(`${tool.name} désactivé`)
-    }
   }
 
   function handleConsoleToggle() {

@@ -18,7 +18,7 @@
     }
     
     ideStore.login(demoUser)
-    ideStore.addLog(`User ${demoUser.username} logged in via OAuth`, 'info')
+    ideStore.addLog(`User ${demoUser.username} logged in via FakeOAuth`, 'info')
     ideStore.addNotification(
       'Connexion réussie',
       `Bienvenue ${demoUser.username} !`,
