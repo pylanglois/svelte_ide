@@ -6,19 +6,34 @@
   let { files = [], toolId } = $props()
   let selectedFileName = $state(null)
 
+  function getIconForFile(fileName) {
+    const extension = fileName.split('.').pop()
+    switch (extension) {
+      case 'js': return 'JS'
+      case 'html': return '🌐'
+      case 'css': return '🎨'
+      case 'json': return '{}'
+      case 'md': return '📝'
+      default: return '📄'
+    }
+  }
+
   function handleFileClick(file) {
     selectedFileName = file.name
     ideStore.addLog(`Fichier ${file.name} sélectionné`, 'info', 'Explorateur V2')
   }
 
   function handleFileDoubleClick(file) {
-    const tab = ideStore.addTabFromTool(
+    ideStore.addTabFromTool(
       toolId,
       `${toolId}-${file.name}`,
       `V2: ${file.name}`,
       FileViewer,
-      true,
-      { fileContent: file.content || 'Contenu par défaut V2' }
+      {
+        closable: true,
+        icon: getIconForFile(file.name),
+        fileContent: file.content || 'Contenu par défaut V2'
+      }
     )
     
     ideStore.addLog(`Fichier ${file.name} ouvert`, 'info', 'Explorateur V2')

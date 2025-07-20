@@ -94,8 +94,8 @@
           tabindex="0"
         >
           <span class="tab-title">
-            {#if tab.toolIcon}
-              <span class="tool-icon">{tab.toolIcon}</span>
+            {#if tab.icon}
+              <span class="tab-icon">{tab.icon}</span>
             {/if}
             {tab.title}
             {#if tab.modified}
@@ -213,7 +213,7 @@
     gap: 4px;
   }
 
-  .tool-icon {
+  .tab-icon {
     font-size: 12px;
     flex-shrink: 0;
     opacity: 0.8;

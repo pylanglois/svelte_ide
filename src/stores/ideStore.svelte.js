@@ -173,13 +173,10 @@ class IDEStore {
     this.activeTab = tab.id
   }
 
-  addTabFromTool(toolId, tabId, title, component, closable = true, additionalProps = {}) {
-    const tool = this.tools.find(t => t.id === toolId)
-    const toolIcon = tool ? tool.icon : null
-    
+  addTabFromTool(toolId, tabId, title, component, { closable = true, icon = null, ...additionalProps } = {}) {
     const tab = new (class extends Tab {
       constructor() {
-        super(tabId, title, component, closable, toolIcon)
+        super(tabId, title, component, closable, icon)
         Object.assign(this, additionalProps)
       }
     })()
