@@ -13,6 +13,7 @@
         <button
           class="tool-button"
           class:active={tool.active}
+          class:focused={tool.active && ideStore.focusedPanel === tool.position}
           onclick={() => handleToolClick(tool)}
           title={tool.name}
         >
@@ -25,6 +26,7 @@
         <button
           class="tool-button"
           class:active={tool.active}
+          class:focused={tool.active && ideStore.focusedPanel === tool.position}
           onclick={() => handleToolClick(tool)}
           title={tool.name}
         >
@@ -82,7 +84,11 @@
   }
 
   .tool-button.active {
-    background: #007acc !important;
+    background: #3e3e42;
+  }
+
+  .tool-button.focused {
+    background: #007acc;
     color: #ffffff;
   }
 

@@ -66,8 +66,12 @@ class IDEStore {
     if (currentlyActiveTool?.id !== tool.id) {
       tool.activate()
       this.activeToolsByPosition[position] = tool
+      this.focusedPanel = position
     } else {
       this.activeToolsByPosition[position] = null
+      if (this.focusedPanel === position) {
+        this.focusedPanel = null
+      }
     }
   }
 
