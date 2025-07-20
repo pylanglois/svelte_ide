@@ -1,15 +1,23 @@
 <script>
   import { ideStore } from '../../stores/ideStore.svelte.js'
 
+  let { position } = $props()
+
+  const isLeft = position === 'left'
+  
+  const topTools = isLeft ? ideStore.topLeftTools : ideStore.topRightTools
+  const bottomTools = isLeft ? ideStore.bottomLeftTools : ideStore.bottomRightTools
+  const sharedBottomTools = isLeft ? ideStore.bottomTools : []
+
   function handleToolClick(tool) {
     ideStore.toggleTool(tool.id)
   }
 </script>
 
-<div class="left-toolbar">
+<div class="toolbar" class:left={isLeft} class:right={!isLeft}>
   <div class="tools-section">
     <div class="quadrant-group">
-      {#each ideStore.topLeftTools as tool (tool.id)}
+      {#each topTools as tool (tool.id)}
         <button
           class="tool-button"
           class:active={tool.active}
@@ -22,7 +30,7 @@
       {/each}
     </div>
     <div class="quadrant-group bottom">
-      {#each ideStore.bottomLeftTools as tool (tool.id)}
+      {#each bottomTools as tool (tool.id)}
         <button
           class="tool-button"
           class:active={tool.active}
@@ -36,29 +44,38 @@
     </div>
   </div>
 
-  <div class="bottom-section">
-    {#each ideStore.bottomTools as tool (tool.id)}
-      <button
-        class="tool-button"
-        class:active={tool.active}
-        class:focused={tool.active && ideStore.focusedPanel === tool.position}
-        onclick={() => handleToolClick(tool)}
-        title={tool.name}
-      >
-        <i class="icon">{tool.icon}</i>
-      </button>
-    {/each}
-  </div>
+  {#if isLeft && sharedBottomTools.length > 0}
+    <div class="bottom-section">
+      {#each sharedBottomTools as tool (tool.id)}
+        <button
+          class="tool-button"
+          class:active={tool.active}
+          class:focused={tool.active && ideStore.focusedPanel === tool.position}
+          onclick={() => handleToolClick(tool)}
+          title={tool.name}
+        >
+          <i class="icon">{tool.icon}</i>
+        </button>
+      {/each}
+    </div>
+  {/if}
 </div>
 
 <style>
-  .left-toolbar {
+  .toolbar {
     width: 48px;
     background: #2d2d30;
-    border-right: 1px solid #3e3e42;
     display: flex;
     flex-direction: column;
     padding: 0;
+  }
+
+  .toolbar.left {
+    border-right: 1px solid #3e3e42;
+  }
+
+  .toolbar.right {
+    border-left: 1px solid #3e3e42;
   }
 
   .tools-section {

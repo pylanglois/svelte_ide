@@ -4,8 +4,7 @@
   import { ConsoleTool, NotificationsTool } from './core/SystemTools.js'
 
   import TitleBar from './components/layout/TitleBar.svelte'
-  import LeftToolbar from './components/layout/LeftToolbar.svelte'
-  import RightToolbar from './components/layout/RightToolbar.svelte'
+  import Toolbar from './components/layout/Toolbar.svelte'
   import StatusBar from './components/layout/StatusBar.svelte'
   import MainView from './components/layout/MainView.svelte'
   import ContextMenu from './components/layout/ContextMenu.svelte'
@@ -77,7 +76,7 @@
 
   {#if ideStore.user}
     <div class="main-container">
-      <LeftToolbar />
+      <Toolbar position="left" />
       
       <div class="content-area">
         <div class="panels-wrapper">
@@ -108,7 +107,7 @@
         {/if}
       </div>
       
-      <RightToolbar />
+      <Toolbar position="right" />
     </div>
     
     <StatusBar />
@@ -118,8 +117,6 @@
     </div>
   {/if}
 </div>
-
-<ContextMenu />
 
 <style>
   :global(*) {
