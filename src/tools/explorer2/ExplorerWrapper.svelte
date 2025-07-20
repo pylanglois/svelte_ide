@@ -1,5 +1,5 @@
 <script>
-  import FileExplorer from './FileExplorer.svelte'
+  import FileExplorer from '@tools/explorer2/FileExplorer.svelte'
 
   let { toolId } = $props()
 

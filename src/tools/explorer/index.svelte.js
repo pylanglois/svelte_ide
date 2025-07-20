@@ -1,6 +1,6 @@
 import { Tool } from '@/core/Tool.svelte.js'
-import ExplorerWrapper from './ExplorerWrapper.svelte'
-import MetadataPanel from './MetadataPanel.svelte'
+import ExplorerWrapper from '@tools/explorer/ExplorerWrapper.svelte'
+import MetadataPanel from '@tools/explorer/MetadataPanel.svelte'
 
 class MetadataTool extends Tool {
   constructor() {

@@ -1,6 +1,6 @@
 <script>
   import { ideStore } from '@/stores/ideStore.svelte.js'
-  import FileViewer from './FileViewer.svelte'
+  import FileViewer from '@tools/explorer/FileViewer.svelte'
   import { contextMenuService } from '@/core/ContextMenuService.svelte.js'
 
   let { files = [], toolId } = $props()

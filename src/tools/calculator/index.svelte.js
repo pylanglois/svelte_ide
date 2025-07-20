@@ -1,5 +1,5 @@
 import { Tool } from '@/core/Tool.svelte.js'
-import Calculator from './Calculator.svelte'
+import Calculator from '@tools/calculator/Calculator.svelte'
 
 class CalculatorTool extends Tool {
   constructor() {
