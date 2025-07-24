@@ -1,8 +1,8 @@
 # IDE Framework Svelte 5
 
-Framework d'interface de développement modulaire inspiré de PyCharm. Conçu pour être réutilisé dans différents projets en tant que base générique.
+Ce projet est un framework modulaire pour la création d'environnements de développement intégrés (IDE), construit avec Svelte 5.
 
-## Installation
+## Démarrage Rapide
 
 ```bash
 npm install
@@ -11,48 +11,16 @@ npm run dev
 
 ## Architecture
 
-Interface divisée en 8 sections principales :
-- **Barre de titre** : Titre et connexion utilisateur
-- **Barres d'outils latérales** : Icônes d'activation des outils
-- **Panneaux latéraux** : Contenu des outils (redimensionnables)
-- **Zone principale** : Onglets et visualisations
-- **Console** : Logs système avec onglets (redimensionnable)
-- **Barre d'état** : Messages contextuels et contrôles
+Le framework est conçu autour d'une séparation stricte entre le **cœur de l'IDE** (la structure, les services) et les **Outils** (les fonctionnalités modulaires). Cette approche garantit une extensibilité et une maintenabilité maximales.
 
-## Séparation IDE / Outils
+Pour une explication détaillée de l'architecture, des services disponibles et de la manière de créer vos propres outils, veuillez consulter le document :
 
-L'IDE fournit une **interface générique** et des **services** aux outils spécifiques :
+➡️ **[ARCHITECTURE.md](./ARCHITECTURE.md)**
 
-### Interface Core (maintenir l'abstraction entre le core et les tools)
-- `src/core/` : Classes de base et gestionnaires
-- `src/stores/` : État global de l'IDE
-- `src/components/layout/` : Composants d'interface
+## Normes de Développement
 
-### Outils Modulaires (spécifiques au projet)
-- `src/tools/[nom-outil]/` : Outils détectés automatiquement
-- Peuvent être supprimés sans casser l'IDE
-- Isolation complète du code core
+Ce projet applique des règles de codage strictes basées sur les dernières fonctionnalités de **Svelte 5 (Runes)**. L'utilisation de syntaxe legacy est proscrite.
 
-## Services Disponibles
+Pour connaître les règles précises, les bonnes pratiques et les anti-patterns à éviter, veuillez consulter le guide de développement :
 
-### Panneaux Latéraux
-- Outils gauche/droite avec activation/désactivation
-- Redimensionnement automatique
-
-### Système d'Onglets
-- Création d'onglets dans la zone principale
-- Gestion des fermetures et navigation
-
-### Console Multi-Onglets
-- Logs par catégorie avec horodatage
-- Types : info, warning, error
-
-### Notifications
-- Système de notifications avec compteur
-- Notifications non lues
-
-## Technologies
-
-- **Svelte 5** avec syntaxe runes ($state, $effect, $derived)
-- **Vite** pour le build
-- **CSS Custom Properties** pour le thème VS Code
+➡️ **[SVELTE5.md](./SVELTE5.md)**
