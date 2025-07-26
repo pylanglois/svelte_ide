@@ -4,39 +4,98 @@
   let { position } = $props()
 
   const isLeft = position === 'left'
-  
-  const topTools = isLeft ? ideStore.topLeftTools : ideStore.topRightTools
-  const bottomTools = isLeft ? ideStore.bottomLeftTools : ideStore.bottomRightTools
-  const sharedBottomTools = isLeft ? ideStore.bottomTools : []
+
+  let topTools = $derived(isLeft ? ideStore.topLeftTools : ideStore.topRightTools)
+  let bottomTools = $derived(isLeft ? ideStore.bottomLeftTools : ideStore.bottomRightTools)
+  let sharedBottomTools = $derived(isLeft ? ideStore.bottomTools : [])
+
+  const topTarget = isLeft ? 'topLeft' : 'topRight'
+  const bottomTarget = isLeft ? 'bottomLeft' : 'bottomRight'
 
   function handleToolClick(tool) {
     ideStore.toggleTool(tool.id)
+  }
+
+  function handleDragStart(e, tool) {
+    e.dataTransfer.setData('text/plain', tool.id)
+    e.dataTransfer.effectAllowed = 'move'
+    ideStore.draggedTool = tool
+    ideStore.draggedToolSource = tool.position
+  }
+
+  function handleDragEnd() {
+    ideStore.draggedTool = null
+    ideStore.draggedToolSource = null
+    ideStore.dragOverZone = null
+  }
+
+  function handleDragOver(e, targetPosition) {
+    e.preventDefault()
+    if (ideStore.draggedTool && ideStore.draggedToolSource !== targetPosition) {
+      ideStore.dragOverZone = targetPosition
+      e.dataTransfer.dropEffect = 'move'
+    } else {
+      e.dataTransfer.dropEffect = 'none'
+    }
+  }
+
+  function handleDragLeave(targetPosition) {
+    if (ideStore.dragOverZone === targetPosition) {
+      ideStore.dragOverZone = null
+    }
+  }
+
+  function handleDrop(targetPosition) {
+    if (ideStore.draggedTool && ideStore.draggedToolSource !== targetPosition) {
+      ideStore.moveTool(ideStore.draggedTool.id, targetPosition)
+    }
+    handleDragEnd()
   }
 </script>
 
 <div class="toolbar" class:left={isLeft} class:right={!isLeft}>
   <div class="tools-section">
-    <div class="quadrant-group">
+    <div
+      class="quadrant-group"
+      class:drag-over={ideStore.dragOverZone === topTarget}
+      ondragover={(e) => handleDragOver(e, topTarget)}
+      ondragleave={() => handleDragLeave(topTarget)}
+      ondrop={() => handleDrop(topTarget)}
+    >
       {#each topTools as tool (tool.id)}
         <button
           class="tool-button"
           class:active={tool.active}
           class:focused={tool.active && ideStore.focusedPanel === tool.position}
+          class:dragging={ideStore.draggedTool?.id === tool.id}
           onclick={() => handleToolClick(tool)}
           title={tool.name}
+          draggable="true"
+          ondragstart={(e) => handleDragStart(e, tool)}
+          ondragend={handleDragEnd}
         >
           <i class="icon">{tool.icon}</i>
         </button>
       {/each}
     </div>
-    <div class="quadrant-group bottom">
+    <div
+      class="quadrant-group bottom"
+      class:drag-over={ideStore.dragOverZone === bottomTarget}
+      ondragover={(e) => handleDragOver(e, bottomTarget)}
+      ondragleave={() => handleDragLeave(bottomTarget)}
+      ondrop={() => handleDrop(bottomTarget)}
+    >
       {#each bottomTools as tool (tool.id)}
         <button
           class="tool-button"
           class:active={tool.active}
           class:focused={tool.active && ideStore.focusedPanel === tool.position}
+          class:dragging={ideStore.draggedTool?.id === tool.id}
           onclick={() => handleToolClick(tool)}
           title={tool.name}
+          draggable="true"
+          ondragstart={(e) => handleDragStart(e, tool)}
+          ondragend={handleDragEnd}
         >
           <i class="icon">{tool.icon}</i>
         </button>
@@ -89,6 +148,12 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-height: 40px; /* Zone de drop minimale */
+    transition: background-color 0.2s ease;
+  }
+
+  .quadrant-group.drag-over {
+    background-color: #007acc;
   }
 
   .quadrant-group.bottom {
@@ -115,6 +180,11 @@
     position: relative;
     margin: 2px 8px;
     border-radius: 3px;
+    transition: opacity 0.2s ease;
+  }
+
+  .tool-button.dragging {
+    opacity: 0.4;
   }
 
   .tool-button:hover {

@@ -76,6 +76,7 @@
 </script>
 
 <div class="app">
+  <ContextMenu />
   <TitleBar />
 
   {#if ideStore.user}

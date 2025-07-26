@@ -9,6 +9,10 @@ class IDEStore {
     this.user = $state(null)
     this.focusedPanel = $state(null)
 
+    this.draggedTool = $state(null)
+    this.draggedToolSource = $state(null)
+    this.dragOverZone = $state(null)
+
     this.activeToolsByPosition = $state({
       topLeft: null,
       bottomLeft: null,
@@ -24,17 +28,28 @@ class IDEStore {
     this.notifications = $state([])
     this.unreadNotificationsCount = $state(0)
     this._notificationIdCounter = 0
+
+    this.topLeftTools = $state([])
+    this.bottomLeftTools = $state([])
+    this.topRightTools = $state([])
+    this.bottomRightTools = $state([])
+    this.bottomTools = $state([])
+    
+    this._updateToolLists()
   }
 
-  topLeftTools = $derived(this.tools.filter(t => t.position === 'topLeft'))
-  bottomLeftTools = $derived(this.tools.filter(t => t.position === 'bottomLeft'))
-  topRightTools = $derived(this.tools.filter(t => t.position === 'topRight'))
-  bottomRightTools = $derived(this.tools.filter(t => t.position === 'bottomRight'))
-  bottomTools = $derived(this.tools.filter(t => t.position === 'bottom'))
+  _updateToolLists() {
+    this.topLeftTools = this.tools.filter(t => t.position === 'topLeft')
+    this.bottomLeftTools = this.tools.filter(t => t.position === 'bottomLeft')
+    this.topRightTools = this.tools.filter(t => t.position === 'topRight')
+    this.bottomRightTools = this.tools.filter(t => t.position === 'bottomRight')
+    this.bottomTools = this.tools.filter(t => t.position === 'bottom')
+  }
 
   addTool(tool) {
     if (!this.tools.find(t => t.id === tool.id)) {
       this.tools.push(tool)
+      this._updateToolLists()
     }
   }
 
@@ -42,6 +57,7 @@ class IDEStore {
     const index = this.tools.findIndex(tool => tool.id === toolId)
     if (index !== -1) {
       this.tools.splice(index, 1)
+      this._updateToolLists()
     }
   }
 
@@ -49,6 +65,7 @@ class IDEStore {
     const tool = this.tools.find(t => t.id === toolId)
     if (tool && this.activeToolsByPosition.hasOwnProperty(newPosition)) {
       tool.setPosition(newPosition)
+      this._updateToolLists()
     }
   }
 
