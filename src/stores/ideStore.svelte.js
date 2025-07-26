@@ -219,8 +219,14 @@ class IDEStore {
   }
 
   setActiveTab(tabId) {
-    this.activeTab = tabId
-    eventBus.publish('tabs:activated', { tabId })
+    const tab = this.tabs.find(t => t.id === tabId)
+    if (tab) {
+      this.activeTab = tabId
+      eventBus.publish('tabs:activated', tab)
+    } else if (tabId === null) {
+      this.activeTab = null
+      eventBus.publish('tabs:activated', null)
+    }
   }
 
   setFocusedPanel(panelType) {

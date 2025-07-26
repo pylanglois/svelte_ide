@@ -1,21 +1,18 @@
 <script>
   import { ideStore } from '@/stores/ideStore.svelte.js'
+  import { eventBus } from '@/core/EventBusService.svelte.js'
+  import FileViewer from '@tools/explorer/FileViewer.svelte'
 
-  let activeTab = $state(null)
   let metadata = $state(null)
+  let activeTabId = $state(null)
 
-  // Mise à jour réactive manuelle pour éviter les problèmes de $derived
-  $effect(() => {
-    activeTab = ideStore.tabs.find(tab => tab.id === ideStore.activeTab)
-    
-    if (activeTab && activeTab.id.startsWith('explorer-')) {
-      const fileContent = activeTab.fileContent || 'allo bonjour'
-      const lineCount = countLines(fileContent)
-      
+  function processTab(tab) {
+    if (tab && tab.component === FileViewer) {
+      const fileContent = tab.fileContent || ''
       metadata = {
-        name: activeTab.title,
-        type: getFileExtension(activeTab.title),
-        size: generateFakeSize(),
+        name: tab.title,
+        type: getFileExtension(tab.title),
+        size: `${fileContent.length} octets`,
         modified: new Date().toLocaleDateString('fr-FR', {
           year: 'numeric',
           month: 'long',
@@ -24,16 +21,33 @@
           minute: '2-digit'
         }),
         encoding: 'UTF-8',
-        lines: lineCount,
+        lines: countLines(fileContent),
         characters: fileContent.length,
-        words: fileContent.split(/\s+/).filter(word => word.length > 0).length
+        words: fileContent.split(/\s+/).filter(Boolean).length
       }
+      activeTabId = tab.id
     } else {
       metadata = null
+      activeTabId = null
     }
+  }
+
+  $effect(() => {
+    // 1. Traiter l'état initial au montage
+    const currentActiveTab = ideStore.tabs.find(t => t.id === ideStore.activeTab)
+    processTab(currentActiveTab)
+
+    // 2. S'abonner aux futurs changements
+    const unsubscribe = eventBus.subscribe('tabs:activated', (activatedTab) => {
+      processTab(activatedTab)
+    })
+
+    // 3. Nettoyer l'abonnement à la destruction
+    return () => unsubscribe()
   })
 
   function getFileExtension(filename) {
+    if (!filename) return 'Inconnu'
     const extension = filename.split('.').pop()?.toLowerCase()
     switch (extension) {
       case 'svelte': return 'Composant Svelte'
@@ -47,12 +61,6 @@
     }
   }
 
-  function generateFakeSize() {
-    // Génère une taille aléatoire mais cohérente pour le test
-    const sizes = ['1.2 KB', '2.4 KB', '3.7 KB', '5.1 KB', '8.3 KB', '12.5 KB', '15.9 KB']
-    return sizes[Math.floor(Math.random() * sizes.length)]
-  }
-
   function countLines(content) {
     if (!content) return 0
     return content.split('\n').length
@@ -60,7 +68,7 @@
 </script>
 
 <div class="metadata-panel">
-  {#if activeTab && metadata}
+  {#if metadata}
     <div class="metadata-section">
       <h4>Informations du fichier</h4>
       <div class="metadata-item">
@@ -105,11 +113,7 @@
       <h4>Emplacement</h4>
       <div class="metadata-item">
         <span class="label">Onglet:</span>
-        <span class="value">{activeTab.id}</span>
-      </div>
-      <div class="metadata-item">
-        <span class="label">Statut:</span>
-        <span class="value">{activeTab.isDirty ? 'Modifié' : 'Sauvegardé'}</span>
+        <span class="value">{activeTabId}</span>
       </div>
     </div>
   {:else}
