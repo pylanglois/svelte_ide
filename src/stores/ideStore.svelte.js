@@ -1,4 +1,5 @@
 import { Tab } from '@/core/Tab.svelte.js'
+import { eventBus } from '@/core/EventBusService.svelte.js'
 
 class IDEStore {
   constructor() {
@@ -206,6 +207,7 @@ class IDEStore {
     const index = this.tabs.findIndex(tab => tab.id === tabId)
     if (index !== -1) {
       this.tabs.splice(index, 1)
+      eventBus.publish('tabs:closed', { tabId })
       if (this.activeTab === tabId) {
         this.activeTab = this.tabs.length > 0 ? this.tabs[this.tabs.length - 1].id : null
       }
@@ -218,6 +220,7 @@ class IDEStore {
 
   setActiveTab(tabId) {
     this.activeTab = tabId
+    eventBus.publish('tabs:activated', { tabId })
   }
 
   setFocusedPanel(panelType) {

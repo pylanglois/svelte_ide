@@ -1,6 +1,7 @@
 <script>
   import { toolManager } from '@/core/ToolManager.svelte.js'
   import { ideStore } from '@/stores/ideStore.svelte.js'
+  import { eventBus } from '@/core/EventBusService.svelte.js'
   import { ConsoleTool, NotificationsTool } from '@/core/SystemTools.js'
 
   import TitleBar from '@/components/layout/TitleBar.svelte'
@@ -73,6 +74,24 @@
     await toolManager.loadTools()
     ideStore.setStatusMessage('IDE prêt')
   })()
+
+  // Test de l'Event Bus
+  $effect(() => {
+    const consoleTabName = 'Événements IDE'
+
+    const unsubActivated = eventBus.subscribe('tabs:activated', (data) => {
+      ideStore.addLog(`Onglet activé: ${data.tabId}`, 'info', consoleTabName)
+    })
+
+    const unsubClosed = eventBus.subscribe('tabs:closed', (data) => {
+      ideStore.addLog(`Onglet fermé: ${data.tabId}`, 'warning', consoleTabName)
+    })
+
+    return () => {
+      unsubActivated()
+      unsubClosed()
+    }
+  })
 </script>
 
 <div class="app">
