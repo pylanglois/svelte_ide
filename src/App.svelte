@@ -8,9 +8,13 @@
   import Toolbar from '@/components/layout/Toolbar.svelte'
   import StatusBar from '@/components/layout/StatusBar.svelte'
   import MainView from '@/components/layout/MainView.svelte'
+  import MainViewSplit from '@/components/layout/MainViewSplit.svelte'
   import ContextMenu from '@/components/layout/ContextMenu.svelte'
   import ToolPanel from '@/components/layout/ToolPanel.svelte'
   import ResizeHandle from '@/components/layout/ResizeHandle.svelte'
+
+  // FEATURE FLAG : activer/désactiver le nouveau système de splits
+  const USE_SPLIT_VIEW = true
 
   let leftPanelWidth = $state(250)
   let rightPanelWidth = $state(250)
@@ -97,7 +101,11 @@
             <ResizeHandle direction="vertical" onResizeStart={createResizeLogic('left')} />
           {/if}
           
-          <MainView />
+          {#if USE_SPLIT_VIEW}
+            <MainViewSplit />
+          {:else}
+            <MainView />
+          {/if}
           
           {#if ideStore.activeToolsByPosition.topRight || ideStore.activeToolsByPosition.bottomRight}
             <ResizeHandle direction="vertical" onResizeStart={createResizeLogic('right')} />

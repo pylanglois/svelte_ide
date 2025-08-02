@@ -1,11 +1,14 @@
 import { Tab } from '@/core/Tab.svelte.js'
 import { eventBus } from '@/core/EventBusService.svelte.js'
+import { layoutService } from '@/core/LayoutService.svelte.js'
 
 class IDEStore {
   constructor() {
     this.tools = $state([])
-    this.tabs = $state([])
-    this.activeTab = $state(null)
+    // ANCIEN SYSTÈME : on garde pour compatibilité mais on délègue au LayoutService
+    this._tabs = $state([])
+    this._activeTab = $state(null)
+    
     this.statusMessage = $state('')
     this.user = $state(null)
     this.focusedPanel = $state(null)
@@ -37,6 +40,15 @@ class IDEStore {
     this.bottomTools = $state([])
     
     this._updateToolLists()
+  }
+
+  // WRAPPER DE COMPATIBILITÉ : API identique mais délègue au LayoutService
+  get tabs() {
+    return layoutService.tabs
+  }
+
+  get activeTab() {
+    return layoutService.activeTab
   }
 
   _updateToolLists() {
@@ -184,11 +196,8 @@ class IDEStore {
   }
 
   addTab(tab) {
-    const existingTab = this.tabs.find(t => t.id === tab.id)
-    if (!existingTab) {
-      this.tabs.push(tab)
-    }
-    this.activeTab = tab.id
+    // DÉLÉGATION : on utilise le LayoutService mais on garde les events
+    layoutService.addTab(tab)
   }
 
   addTabFromTool(toolId, tabId, title, component, { closable = true, icon = null, ...additionalProps } = {}) {
@@ -204,27 +213,24 @@ class IDEStore {
   }
 
   closeTab(tabId) {
-    const index = this.tabs.findIndex(tab => tab.id === tabId)
-    if (index !== -1) {
-      this.tabs.splice(index, 1)
-      eventBus.publish('tabs:closed', { tabId })
-      if (this.activeTab === tabId) {
-        this.activeTab = this.tabs.length > 0 ? this.tabs[this.tabs.length - 1].id : null
-      }
+    // DÉLÉGATION : on utilise le LayoutService mais on garde les events
+    const closedTabId = layoutService.closeTab(tabId)
+    if (closedTabId) {
+      eventBus.publish('tabs:closed', { tabId: closedTabId })
     }
   }
 
   reorderTabs(newTabsOrder) {
-    this.tabs = newTabsOrder
+    // DÉLÉGATION : on utilise le LayoutService
+    layoutService.reorderTabs(newTabsOrder)
   }
 
   setActiveTab(tabId) {
-    const tab = this.tabs.find(t => t.id === tabId)
+    // DÉLÉGATION : on utilise le LayoutService mais on garde les events
+    const tab = layoutService.setActiveTab(tabId)
     if (tab) {
-      this.activeTab = tabId
       eventBus.publish('tabs:activated', tab)
     } else if (tabId === null) {
-      this.activeTab = null
       eventBus.publish('tabs:activated', null)
     }
   }
