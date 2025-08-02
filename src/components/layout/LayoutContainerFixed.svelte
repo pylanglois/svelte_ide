@@ -190,17 +190,18 @@
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
     
-    const dragInfo = dragDropService.getDragInfo()
-    
-    // Ne pas traiter le survol si on drag depuis le même groupe (réarrangement interne)
-    if (dragInfo.sourceGroup === layoutNode.id) {
-      dragDropService.clearDragTarget()
-      return
+    if (layoutNode.tabs.length > 0) {
+      const rect = e.currentTarget.getBoundingClientRect()
+      const edge = dragDropService.calculateEdgeZone(rect, e.clientX, e.clientY)
+      
+      if (edge) {
+        dragDropService.setEdgeDropZone(layoutNode.id, edge, e.clientX, e.clientY)
+      } else {
+        dragDropService.setDragTarget(layoutNode.id, null)
+      }
+    } else {
+      dragDropService.setDragTarget(layoutNode.id, null)
     }
-    
-    // Calculer et définir la zone de prévisualisation
-    const rect = e.currentTarget.getBoundingClientRect()
-    dragDropService.setDropPreview(layoutNode.id, rect, e.clientX, e.clientY)
   }
 
   function handleTabGroupAreaDrop(e) {
@@ -213,16 +214,16 @@
     const targetGroupId = layoutNode.id
     const draggedTabId = dragInfo.draggedTab.id
 
-    // Vérifier si on a une prévisualisation de drop
-    if (dragInfo.dropPreview && dragInfo.dropPreview.groupId === layoutNode.id) {
-      layoutService.createSplitFromDropZone(
+    // Vérifier si on drop sur une zone de bord pour créer un split
+    if (dragInfo.edgeDropZone && dragInfo.edgeDropZone.groupId === layoutNode.id) {
+      layoutService.createSplitFromEdgeDrop(
         targetGroupId,
-        dragInfo.dropPreview.zone,
+        dragInfo.edgeDropZone.edge,
         draggedTabId,
         sourceGroupId
       )
     } else {
-      // Drop normal (fallback)
+      // Drop normal sur le groupe vide ou au centre
       if (sourceGroupId !== targetGroupId) {
         layoutService.moveTabBetweenGroups(
           draggedTabId, 
@@ -334,18 +335,12 @@
   >
     <!-- Zones de drop pour créer des splits -->
     {#if dragDropService.isDragging && layoutNode.tabs.length > 0}
-      <!-- Prévisualisation IntelliJ-style pour le drag & drop -->
-      {#if dragDropService.hasDropPreview(layoutNode.id)}
-        {@const preview = dragDropService.getDropPreview(layoutNode.id)}
-        <div 
-          class="drop-preview"
-          class:center={preview.zone === 'center'}
-          class:top={preview.zone === 'top'}
-          class:bottom={preview.zone === 'bottom'}
-          class:left={preview.zone === 'left'}
-          class:right={preview.zone === 'right'}
-        ></div>
-      {/if}
+      <div class="edge-drop-zones">
+        <div class="edge-zone edge-top" class:active={dragDropService.getEdgeDropZone(layoutNode.id)?.edge === 'top'}></div>
+        <div class="edge-zone edge-bottom" class:active={dragDropService.getEdgeDropZone(layoutNode.id)?.edge === 'bottom'}></div>
+        <div class="edge-zone edge-left" class:active={dragDropService.getEdgeDropZone(layoutNode.id)?.edge === 'left'}></div>
+        <div class="edge-zone edge-right" class:active={dragDropService.getEdgeDropZone(layoutNode.id)?.edge === 'right'}></div>
+      </div>
     {/if}
 
     {#if layoutNode.tabs.length > 0}
@@ -466,51 +461,70 @@
     position: relative;
   }
 
-  /* Prévisualisation de drop IntelliJ-style */
-  .drop-preview {
+  /* Zones de drop sur les bords pour créer des splits */
+  .edge-drop-zones {
     position: absolute;
-    background: rgba(255, 255, 255, 0.3);
-    border: 2px solid rgba(255, 255, 255, 0.6);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     pointer-events: none;
     z-index: 1000;
-    transition: all 0.1s ease;
   }
 
-  .drop-preview.center {
+  .edge-zone {
+    position: absolute;
+    background: rgba(0, 122, 204, 0.2);
+    border: 2px dashed rgba(0, 122, 204, 0.5);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+  }
+
+  .edge-zone.active {
+    opacity: 1;
+    background: rgba(0, 122, 204, 0.3);
+    border-color: #007acc;
+    animation: pulse-edge 1s infinite;
+  }
+
+  .edge-top {
     top: 0;
     left: 0;
     right: 0;
-    bottom: 0;
-    background: rgba(255, 255, 255, 0.2);
-    border: 2px solid rgba(255, 255, 255, 0.4);
+    height: 30px;
   }
 
-  .drop-preview.top {
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 50%;
-  }
-
-  .drop-preview.bottom {
+  .edge-bottom {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 50%;
+    height: 30px;
   }
 
-  .drop-preview.left {
+  .edge-left {
     top: 0;
     left: 0;
     bottom: 0;
-    width: 50%;
+    width: 30px;
   }
 
-  .drop-preview.right {
+  .edge-right {
     top: 0;
     right: 0;
     bottom: 0;
-    width: 50%;
+    width: 30px;
+  }
+
+  @keyframes pulse-edge {
+    0%, 100% { 
+      background: rgba(0, 122, 204, 0.3);
+      border-color: #007acc;
+    }
+    50% { 
+      background: rgba(0, 122, 204, 0.5);
+      border-color: #4fc3f7;
+    }
   }
 
   .tab-bar {

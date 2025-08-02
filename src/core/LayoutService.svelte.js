@@ -156,12 +156,17 @@ export class LayoutService {
     }
   }
 
-  // DRAG & DROP : Créer un nouveau split en déposant sur les bords
-  createSplitFromEdgeDrop(targetGroupId, edge, draggedTabId, sourceGroupId) {
+  // DRAG & DROP : Créer un nouveau split en déposant sur les zones (style IntelliJ)
+  createSplitFromDropZone(targetGroupId, zone, draggedTabId, sourceGroupId) {
     const targetGroup = this._findGroupById(this.layout, targetGroupId)
     const sourceGroup = this._findGroupById(this.layout, sourceGroupId)
     
     if (!targetGroup || !sourceGroup) return false
+    
+    // Si c'est la zone centre, faire un drop normal
+    if (zone === 'center') {
+      return this.moveTabBetweenGroups(draggedTabId, sourceGroupId, targetGroupId, -1)
+    }
 
     // Trouver et retirer le tab du groupe source
     const tabIndex = sourceGroup.tabs.findIndex(t => t.id === draggedTabId)
@@ -184,10 +189,28 @@ export class LayoutService {
       activeTab: tab.id
     }
 
-    // Déterminer la direction et l'ordre des enfants
-    const isHorizontal = edge === 'left' || edge === 'right'
-    const direction = isHorizontal ? 'horizontal' : 'vertical'
-    const newFirst = edge === 'left' || edge === 'top'
+    // Déterminer la direction et l'ordre des enfants selon la zone
+    let direction, newFirst
+    switch (zone) {
+      case 'top':
+        direction = 'vertical'
+        newFirst = true
+        break
+      case 'bottom':
+        direction = 'vertical'
+        newFirst = false
+        break
+      case 'left':
+        direction = 'horizontal'
+        newFirst = true
+        break
+      case 'right':
+        direction = 'horizontal'
+        newFirst = false
+        break
+      default:
+        return false
+    }
 
     // Créer le nouveau container
     const newContainer = {

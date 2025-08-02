@@ -8,9 +8,8 @@ export class DragDropService {
     this.isDragging = $derived(() => this.draggedTab !== null)
     this.dropZones = $state([])
     
-    // Zones de drop avancées pour créer de nouveaux splits
-    this.edgeDropZone = $state(null) // { groupId, edge: 'top'|'bottom'|'left'|'right' }
-    this.previewSplit = $state(null) // Prévisualisation du split à créer
+    // Nouveau système de prévisualisation IntelliJ-style
+    this.dropPreview = $state(null) // { groupId, zone: 'center'|'top'|'bottom'|'left'|'right', rect }
   }
 
   // Démarrer un drag
@@ -19,8 +18,7 @@ export class DragDropService {
     this.sourceGroup = sourceGroupId
     this.targetGroup = null
     this.dragOverTab = null
-    this.edgeDropZone = null
-    this.previewSplit = null
+    this.dropPreview = null
     document.body.style.userSelect = 'none'
     
     // Calculer les zones de drop possibles
@@ -31,30 +29,30 @@ export class DragDropService {
   setDragTarget(targetGroupId, targetTab = null) {
     this.targetGroup = targetGroupId
     this.dragOverTab = targetTab
-    this.edgeDropZone = null
-    this.previewSplit = null
+    this.dropPreview = null
   }
 
-  // Définir une zone de drop sur les bords pour créer un split
-  setEdgeDropZone(groupId, edge, mouseX, mouseY) {
-    this.edgeDropZone = { groupId, edge, mouseX, mouseY }
+  // Nouveau : Calculer et définir la zone de prévisualisation
+  setDropPreview(groupId, rect, mouseX, mouseY) {
+    const zone = this.calculateDropZone(rect, mouseX, mouseY)
+    const previewRect = this.calculatePreviewRect(rect, zone)
+    
+    this.dropPreview = {
+      groupId,
+      zone,
+      rect: previewRect
+    }
+    
+    // Nettoyer les anciens états
     this.targetGroup = null
     this.dragOverTab = null
-    
-    // Créer une prévisualisation du split
-    this.previewSplit = {
-      groupId,
-      direction: (edge === 'left' || edge === 'right') ? 'horizontal' : 'vertical',
-      edge
-    }
   }
 
   // Nettoyer le drag target
   clearDragTarget() {
     this.targetGroup = null
     this.dragOverTab = null
-    this.edgeDropZone = null
-    this.previewSplit = null
+    this.dropPreview = null
   }
 
   // Terminer le drag
@@ -64,10 +62,59 @@ export class DragDropService {
     this.targetGroup = null
     this.dragOverTab = null
     this.dropZones = []
-    this.edgeDropZone = null
-    this.previewSplit = null
+    this.dropPreview = null
     document.body.style.userSelect = ''
     document.body.style.cursor = ''
+  }
+
+  // Calculer la zone de drop en fonction de la position de la souris (style IntelliJ)
+  calculateDropZone(rect, mouseX, mouseY) {
+    const { left, right, top, bottom, width, height } = rect
+    
+    // Normaliser les coordonnées (0 à 1)
+    const relativeX = (mouseX - left) / width
+    const relativeY = (mouseY - top) / height
+    
+    // Zones : centre = 40%, bords = 30% chaque côté
+    const centerMargin = 0.3 // 30% de chaque côté = 40% au centre
+    
+    // Vérifier les bords en priorité
+    if (relativeX < centerMargin) {
+      return 'left'
+    } else if (relativeX > (1 - centerMargin)) {
+      return 'right'
+    } else if (relativeY < centerMargin) {
+      return 'top'
+    } else if (relativeY > (1 - centerMargin)) {
+      return 'bottom'
+    } else {
+      return 'center'
+    }
+  }
+
+  // Calculer le rectangle de prévisualisation selon la zone
+  calculatePreviewRect(containerRect, zone) {
+    const { left, top, width, height } = containerRect
+    
+    switch (zone) {
+      case 'center':
+        return { left, top, width, height }
+      
+      case 'top':
+        return { left, top, width, height: height / 2 }
+      
+      case 'bottom':
+        return { left, top: top + height / 2, width, height: height / 2 }
+      
+      case 'left':
+        return { left, top, width: width / 2, height }
+      
+      case 'right':
+        return { left: left + width / 2, top, width: width / 2, height }
+      
+      default:
+        return { left, top, width, height }
+    }
   }
 
   // Vérifier si un groupe est une zone de drop valide
@@ -90,14 +137,14 @@ export class DragDropService {
     return this.targetGroup === groupId
   }
 
-  // Vérifier si un groupe a une zone de drop sur les bords
-  hasEdgeDropZone(groupId) {
-    return this.edgeDropZone?.groupId === groupId
+  // Vérifier si un groupe a une prévisualisation active
+  hasDropPreview(groupId) {
+    return this.dropPreview?.groupId === groupId
   }
 
-  // Obtenir la zone de drop sur les bords
-  getEdgeDropZone(groupId) {
-    return this.edgeDropZone?.groupId === groupId ? this.edgeDropZone : null
+  // Obtenir la prévisualisation de drop
+  getDropPreview(groupId) {
+    return this.dropPreview?.groupId === groupId ? this.dropPreview : null
   }
 
   // Calculer les zones de drop possibles (privé)
@@ -114,31 +161,8 @@ export class DragDropService {
       sourceGroup: this.sourceGroup,
       targetGroup: this.targetGroup,
       isDragging: this.isDragging,
-      edgeDropZone: this.edgeDropZone,
-      previewSplit: this.previewSplit
+      dropPreview: this.dropPreview
     }
-  }
-
-  // Calculer la zone de bord en fonction de la position de la souris
-  calculateEdgeZone(rect, mouseX, mouseY) {
-    const edgeThreshold = 20 // Réduit de 30px à 20px pour être moins agressif
-    const { left, right, top, bottom, width, height } = rect
-    
-    // Seulement activé si le groupe a déjà des tabs (évite de créer des splits sur groupes vides)
-    // Cette vérification sera faite dans le composant appelant
-    
-    // Vérifier les bords dans l'ordre de priorité
-    if (mouseX - left < edgeThreshold) {
-      return 'left'
-    } else if (right - mouseX < edgeThreshold) {
-      return 'right'
-    } else if (mouseY - top < edgeThreshold) {
-      return 'top'
-    } else if (bottom - mouseY < edgeThreshold) {
-      return 'bottom'
-    }
-    
-    return null
   }
 }
 
