@@ -8,6 +8,9 @@ export class LayoutService {
       activeTab: null
     })
 
+    // Store séparé pour les statuts modified des fichiers (par fileName, pas tabId)
+    this.fileModifiedStates = $state({})
+
     this._saveTimeout = null
   }
 
@@ -99,6 +102,47 @@ export class LayoutService {
       return group.tabs.find(t => t.id === tabId)
     }
     return null
+  }
+
+  // Obtenir un tab par son ID
+  getTabById(tabId) {
+    const group = this._findGroupContainingTab(this.layout, tabId)
+    if (group) {
+      return group.tabs.find(t => t.id === tabId)
+    }
+    return null
+  }
+
+  // Marquer un fichier comme modifié (affecte tous les tabs du même fichier)
+  setFileModified(fileName, modified) {
+    this.fileModifiedStates[fileName] = modified
+    this._triggerAutoSave()
+    return true
+  }
+
+  // Vérifier si un fichier est modifié
+  isFileModified(fileName) {
+    return this.fileModifiedStates[fileName] || false
+  }
+
+  // Méthode de compatibilité : marquer un tab comme modifié basé sur son fileName
+  setTabModified(tabId, modified) {
+    const tab = this.getTabById(tabId)
+    if (tab && tab.fileName) {
+      tab.setModified(modified)
+      this.setFileModified(tab.fileName, modified)
+      return true
+    }
+    return false
+  }
+
+  // Vérifier si un tab est modifié (basé sur son fileName)
+  isTabModified(tabId) {
+    const tab = this.getTabById(tabId)
+    if (tab && tab.fileName) {
+      return this.isFileModified(tab.fileName)
+    }
+    return false
   }
 
   // Réorganiser les tabs dans un groupe

@@ -1,10 +1,43 @@
 <script>
-  let { content = "allo bonjour" } = $props()
+  import { explorerStore } from './explorerStore.svelte.js'
+  
+  let { 
+    content: initialContent = "contenu par défaut", 
+    fileName = "untitled",
+    onContentChange = null,
+    onDirtyStateChange = null
+  } = $props()
+  
+  let content = $state("")
+  let lastDirtyState = $state(false)
+  
+  $effect(() => {
+    if (!explorerStore.getFileContent(fileName)) {
+      explorerStore.setFileContent(fileName, initialContent)
+    }
+    content = explorerStore.getFileContent(fileName)
+  })
+  
+  function handleInput() {
+    explorerStore.setFileContent(fileName, content)
+    
+    const isDirty = content !== initialContent
+    if (isDirty !== lastDirtyState) {
+      lastDirtyState = isDirty
+      if (onDirtyStateChange) {
+        onDirtyStateChange(isDirty)
+      }
+    }
+    
+    if (onContentChange) {
+      onContentChange(content)
+    }
+  }
 </script>
 
 <div class="file-content">
   <div class="content-body">
-    <pre>{content}</pre>
+    <textarea bind:value={content} oninput={handleInput} class="file-editor"></textarea>
   </div>
 </div>
 
@@ -17,19 +50,6 @@
     flex-direction: column;
   }
 
-  .content-header {
-    background: #2d2d30;
-    border-bottom: 1px solid #3e3e42;
-    padding: 8px 12px;
-  }
-
-  .content-header h3 {
-    font-size: 13px;
-    font-weight: 400;
-    margin: 0;
-    color: #cccccc;
-  }
-
   .content-body {
     flex: 1;
     padding: 12px;
@@ -37,11 +57,19 @@
     user-select: text;
   }
 
-  pre {
+  .file-editor {
+    width: 100%;
+    height: 100%;
+    background: #1e1e1e;
+    color: #cccccc;
     font-family: 'Courier New', monospace;
     font-size: 14px;
     line-height: 1.5;
-    color: #cccccc;
+    border: none;
+    resize: none;
+    outline: none;
+    padding: 0;
+    box-sizing: border-box;
     white-space: pre-wrap;
     word-wrap: break-word;
   }

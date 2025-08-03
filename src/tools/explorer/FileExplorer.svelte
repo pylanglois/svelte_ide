@@ -24,17 +24,13 @@
   }
 
   function handleFileDoubleClick(file) {
-    ideStore.addTabFromTool(
-      toolId,
-      `${toolId}-${file.name}`,
-      file.name,
-      FileViewer,
-      {
-        closable: true,
-        icon: getIconForFile(file.name),
-        fileContent: file.content || 'allo bonjour'
-      }
-    )
+    ideStore.openFile({
+      fileName: file.name,
+      content: file.content || 'Contenu par défaut',
+      component: FileViewer,
+      icon: getIconForFile(file.name),
+      toolId: toolId
+    })
     
     ideStore.addLog(`Fichier ${file.name} ouvert`, 'info', 'Explorateur')
     

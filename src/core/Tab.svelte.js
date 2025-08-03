@@ -5,7 +5,7 @@ export class Tab {
     this.component = component
     this.closable = closable
     this.icon = icon
-    this.modified = false
+    this.modified = $state(false)
   }
 
   setModified(modified) {

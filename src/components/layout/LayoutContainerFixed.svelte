@@ -368,7 +368,7 @@
                 <span class="tab-icon">{tab.icon}</span>
               {/if}
               {tab.title}
-              {#if tab.modified}
+              {#if ideStore.isTabModified(tab.id)}
                 <span class="modified-indicator">●</span>
               {/if}
             </span>
@@ -388,9 +388,13 @@
         {#if activeTabData && activeTabData.component}
           {@const Component = activeTabData.component}
           {#if activeTabData.fileContent}
-            <Component content={activeTabData.fileContent} />
+            <Component 
+              content={activeTabData.fileContent} 
+              fileName={activeTabData.fileName}
+              {...activeTabData}
+            />
           {:else}
-            <Component />
+            <Component {...activeTabData} />
           {/if}
         {:else if activeTabData}
           <div class="placeholder">

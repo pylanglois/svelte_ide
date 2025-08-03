@@ -200,13 +200,34 @@ class IDEStore {
     layoutService.addTab(tab)
   }
 
-  addTabFromTool(toolId, tabId, title, component, { closable = true, icon = null, ...additionalProps } = {}) {
-    const tab = new (class extends Tab {
-      constructor() {
-        super(tabId, title, component, closable, icon)
-        Object.assign(this, additionalProps)
+  _generateTabId() {
+    return `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  }
+
+  _handleContentChange(tabId, newContent) {
+    eventBus.publish('file:content-changed', { tabId, content: newContent })
+  }
+
+  _handleDirtyState(tabId, isDirty) {
+    const tab = this.getTabById(tabId)
+    if (tab && tab.fileName) {
+      const currentState = layoutService.isFileModified(tab.fileName)
+      if (currentState !== isDirty) {
+        this.setFileModified(tab.fileName, isDirty)
       }
-    })()
+    }
+  }
+
+  openFile({ fileName, content, component, icon = '📄', toolId = null }) {
+    const tabId = this._generateTabId()
+    
+    const tab = new Tab(tabId, fileName, component, true, icon)
+    tab.fileName = fileName
+    tab.content = content
+    tab.originalContent = content
+    tab.toolId = toolId
+    tab.onContentChange = (newContent) => this._handleContentChange(tabId, newContent)
+    tab.onDirtyStateChange = (isDirty) => this._handleDirtyState(tabId, isDirty)
     
     this.addTab(tab)
     return tab
@@ -233,6 +254,36 @@ class IDEStore {
     } else if (tabId === null) {
       eventBus.publish('tabs:activated', null)
     }
+  }
+
+  getTabById(tabId) {
+    // DÉLÉGATION : on utilise le LayoutService
+    return layoutService.getTabById(tabId)
+  }
+
+  setTabModified(tabId, modified) {
+    // DÉLÉGATION : on utilise le LayoutService mais on garde les events
+    const success = layoutService.setTabModified(tabId, modified)
+    if (success) {
+      eventBus.publish('tabs:modified', { tabId, modified })
+    }
+    return success
+  }
+
+  setFileModified(fileName, modified) {
+    const success = layoutService.setFileModified(fileName, modified)
+    if (success) {
+      eventBus.publish('file:modified', { fileName, modified })
+    }
+    return success
+  }
+
+  isTabModified(tabId) {
+    return layoutService.isTabModified(tabId)
+  }
+
+  isFileModified(fileName) {
+    return layoutService.isFileModified(fileName)
   }
 
   setFocusedPanel(panelType) {
