@@ -14,7 +14,8 @@ export class LayoutService {
     this._saveTimeout = null
   }
 
-  // Méthode à appeler manuellement pour déclencher la sauvegarde
+  // ===== SECTION 1: SAUVEGARDE & PERSISTENCE =====
+
   _triggerAutoSave() {
     if (typeof window !== 'undefined') {
       clearTimeout(this._saveTimeout)
@@ -24,7 +25,6 @@ export class LayoutService {
     }
   }
 
-  // Sauvegarde automatique
   _autoSave() {
     try {
       // Import dynamique d'ideStore pour éviter les dépendances circulaires
@@ -38,7 +38,6 @@ export class LayoutService {
     }
   }
 
-  // Créer une version sérialisable du layout
   _createSerializableLayout(layout) {
     if (!layout) {
       return null
@@ -64,7 +63,8 @@ export class LayoutService {
     }
   }
 
-  // API SIMPLE pour gérer l'arbre de layout
+  // ===== SECTION 2: API SIMPLE - GESTION DES TABS =====
+
   get tabs() {
     return this._collectAllTabs(this.layout)
   }
@@ -73,7 +73,6 @@ export class LayoutService {
     return this._findActiveTab(this.layout)
   }
 
-  // Ajouter un tab dans le groupe actif ou le premier disponible
   addTab(tab) {
     const targetGroup = this._findActiveGroup(this.layout) || this._findFirstGroup(this.layout)
     if (targetGroup) {
@@ -86,7 +85,6 @@ export class LayoutService {
     }
   }
 
-  // Fermer un tab et nettoyer si le groupe devient vide
   closeTab(tabId) {
     const group = this._findGroupContainingTab(this.layout, tabId)
     if (!group) return null
@@ -114,24 +112,33 @@ export class LayoutService {
           activeTab: null
         }
       }
-      
+
       this._triggerAutoSave()
+      return tabId
     }
-    return tabId
+    return null
   }
 
-  // Vider tous les tabs du layout
   clearAllTabs() {
-    this.layout = {
-      type: 'tabgroup',
-      id: 'main',
-      tabs: [],
-      activeTab: null
+    const collectAllGroups = (node) => {
+      const groups = []
+      if (node.type === 'tabgroup') {
+        groups.push(node)
+      } else if (node.type === 'container') {
+        node.children.forEach(child => groups.push(...collectAllGroups(child)))
+      }
+      return groups
     }
+
+    const allGroups = collectAllGroups(this.layout)
+    allGroups.forEach(group => {
+      group.tabs = []
+      group.activeTab = null
+    })
+
     this._triggerAutoSave()
   }
 
-  // Activer un tab
   setActiveTab(tabId) {
     const group = this._findGroupContainingTab(this.layout, tabId)
     if (group) {
@@ -142,81 +149,66 @@ export class LayoutService {
     return null
   }
 
-  // Obtenir un tab par son ID
   getTabById(tabId) {
-    const group = this._findGroupContainingTab(this.layout, tabId)
-    if (group) {
-      return group.tabs.find(t => t.id === tabId)
-    }
-    return null
+    const allTabs = this._collectAllTabs(this.layout)
+    return allTabs.find(tab => tab.id === tabId) || null
   }
 
-  // Marquer un fichier comme modifié (affecte tous les tabs du même fichier)
+  // ===== SECTION 3: GESTION DES FICHIERS MODIFIÉS =====
+
   setFileModified(fileName, modified) {
-    this.fileModifiedStates[fileName] = modified
+    if (modified) {
+      this.fileModifiedStates[fileName] = true
+    } else {
+      delete this.fileModifiedStates[fileName]
+    }
     this._triggerAutoSave()
     return true
   }
 
-  // Vérifier si un fichier est modifié
   isFileModified(fileName) {
-    return this.fileModifiedStates[fileName] || false
+    return !!this.fileModifiedStates[fileName]
   }
 
-  // Méthode de compatibilité : marquer un tab comme modifié basé sur son fileName
   setTabModified(tabId, modified) {
     const tab = this.getTabById(tabId)
     if (tab && tab.fileName) {
-      tab.setModified(modified)
-      this.setFileModified(tab.fileName, modified)
-      return true
+      return this.setFileModified(tab.fileName, modified)
     }
     return false
   }
 
-  // Vérifier si un tab est modifié (basé sur son fileName)
   isTabModified(tabId) {
     const tab = this.getTabById(tabId)
-    if (tab && tab.fileName) {
-      return this.isFileModified(tab.fileName)
-    }
-    return false
+    return tab?.fileName ? this.isFileModified(tab.fileName) : false
   }
 
-  // Réorganiser les tabs dans un groupe
-  reorderTabs(newTabsOrder) {
-    const group = this._findActiveGroup(this.layout) || this._findFirstGroup(this.layout)
-    if (group) {
-      group.tabs = newTabsOrder
-      this._triggerAutoSave()
-    }
-  }
+  // ===== SECTION 4: DRAG & DROP - RÉORGANISATION =====
 
-  // DRAG & DROP : Déplacer un tab entre groupes
-  moveTabBetweenGroups(tabId, sourceGroupId, targetGroupId, targetPosition = -1) {
+  moveTabBetweenGroups(draggedTabId, sourceGroupId, targetGroupId, targetIndex = -1) {
     const sourceGroup = this._findGroupById(this.layout, sourceGroupId)
     const targetGroup = this._findGroupById(this.layout, targetGroupId)
     
     if (!sourceGroup || !targetGroup) return false
 
     // Trouver et retirer le tab du groupe source
-    const tabIndex = sourceGroup.tabs.findIndex(t => t.id === tabId)
+    const tabIndex = sourceGroup.tabs.findIndex(t => t.id === draggedTabId)
     if (tabIndex === -1) return false
 
     const [tab] = sourceGroup.tabs.splice(tabIndex, 1)
 
     // Gérer l'activeTab du groupe source
-    if (sourceGroup.activeTab === tabId) {
+    if (sourceGroup.activeTab === draggedTabId) {
       sourceGroup.activeTab = sourceGroup.tabs.length > 0 
         ? sourceGroup.tabs[Math.min(tabIndex, sourceGroup.tabs.length - 1)].id
         : null
     }
 
     // Ajouter le tab au groupe cible
-    if (targetPosition === -1 || targetPosition >= targetGroup.tabs.length) {
+    if (targetIndex === -1) {
       targetGroup.tabs.push(tab)
     } else {
-      targetGroup.tabs.splice(targetPosition, 0, tab)
+      targetGroup.tabs.splice(targetIndex, 0, tab)
     }
 
     // Activer le tab déplacé dans le groupe cible
@@ -225,11 +217,9 @@ export class LayoutService {
     // Nettoyer les groupes vides
     this._cleanupEmptyGroups()
     this._triggerAutoSave()
-
     return true
   }
 
-  // Réorganiser les tabs dans un groupe spécifique (pour drag & drop interne)
   reorderTabsInGroup(groupId, newTabsOrder) {
     const group = this._findGroupById(this.layout, groupId)
     if (group && group.type === 'tabgroup') {
@@ -238,7 +228,8 @@ export class LayoutService {
     }
   }
 
-  // DRAG & DROP : Créer un nouveau split en déposant sur les zones (style IntelliJ)
+  // ===== SECTION 5: DRAG & DROP - CRÉATION DE SPLITS =====
+
   createSplitFromDropZone(targetGroupId, zone, draggedTabId, sourceGroupId) {
     const targetGroup = this._findGroupById(this.layout, targetGroupId)
     const sourceGroup = this._findGroupById(this.layout, sourceGroupId)
@@ -313,7 +304,96 @@ export class LayoutService {
     return true
   }
 
-  // Nettoyer les groupes vides et simplifier l'arbre
+  // ===== SECTION 6: SPLITS MANUELS =====
+
+  splitHorizontal(groupId) {
+    const group = this._findGroupById(this.layout, groupId)
+    if (!group || group.type !== 'tabgroup') return null
+
+    // Diviser seulement si il y a au moins un tab
+    if (group.tabs.length === 0) return null
+
+    // Prendre le tab actif pour le nouveau groupe
+    const activeTab = group.tabs.find(t => t.id === group.activeTab)
+    if (!activeTab) return null
+
+    // Retirer le tab du groupe original
+    group.tabs = group.tabs.filter(t => t.id !== activeTab.id)
+    group.activeTab = group.tabs.length > 0 ? group.tabs[0].id : null
+
+    // Créer le nouveau container
+    const newContainer = {
+      type: 'container',
+      direction: 'horizontal',
+      id: crypto.randomUUID(),
+      children: [
+        { ...group }, // Groupe original
+        {
+          type: 'tabgroup',
+          id: crypto.randomUUID(),
+          tabs: [activeTab],
+          activeTab: activeTab.id
+        }
+      ],
+      sizes: [50, 50] // Tailles égales par défaut
+    }
+
+    // Remplacer le groupe dans l'arbre
+    this._replaceNode(this.layout, groupId, newContainer)
+    this._triggerAutoSave()
+    return newContainer
+  }
+
+  splitVertical(groupId) {
+    const group = this._findGroupById(this.layout, groupId)
+    if (!group || group.type !== 'tabgroup') return null
+
+    // Diviser seulement si il y a au moins un tab
+    if (group.tabs.length === 0) return null
+
+    // Prendre le tab actif pour le nouveau groupe
+    const activeTab = group.tabs.find(t => t.id === group.activeTab)
+    if (!activeTab) return null
+
+    // Retirer le tab du groupe original
+    group.tabs = group.tabs.filter(t => t.id !== activeTab.id)
+    group.activeTab = group.tabs.length > 0 ? group.tabs[0].id : null
+
+    // Créer le nouveau container
+    const newContainer = {
+      type: 'container',
+      direction: 'vertical',
+      id: crypto.randomUUID(),
+      children: [
+        { ...group }, // Groupe original
+        {
+          type: 'tabgroup',
+          id: crypto.randomUUID(),
+          tabs: [activeTab],
+          activeTab: activeTab.id
+        }
+      ],
+      sizes: [50, 50] // Tailles égales par défaut
+    }
+
+    // Remplacer le groupe dans l'arbre
+    this._replaceNode(this.layout, groupId, newContainer)
+    this._triggerAutoSave()
+    return newContainer
+  }
+
+  // ===== SECTION 7: REDIMENSIONNEMENT =====
+
+  updateSizes(containerId, newSizes) {
+    const container = this._findGroupById(this.layout, containerId)
+    if (container && container.type === 'container') {
+      container.sizes = newSizes
+      this._triggerAutoSave()
+    }
+  }
+
+  // ===== SECTION 8: NETTOYAGE =====
+
   _cleanupEmptyGroups() {
     this._cleanupNode(this.layout)
     
@@ -353,94 +433,8 @@ export class LayoutService {
     }
   }
 
-  // SPLITS : Diviser un groupe horizontalement (côte à côte)
-  splitHorizontal(groupId) {
-    const group = this._findGroupById(this.layout, groupId)
-    if (!group || group.type !== 'tabgroup') return null
+  // ===== SECTION 9: UTILITAIRES DE NAVIGATION =====
 
-    // Diviser seulement si il y a au moins un tab
-    if (group.tabs.length === 0) return null
-
-    // Prendre le tab actif pour le nouveau groupe
-    const activeTab = group.tabs.find(t => t.id === group.activeTab)
-    if (!activeTab) return null
-
-    // Retirer le tab du groupe original
-    group.tabs = group.tabs.filter(t => t.id !== activeTab.id)
-    group.activeTab = group.tabs.length > 0 ? group.tabs[0].id : null
-
-    // Créer le nouveau container
-    const newContainer = {
-      type: 'container',
-      direction: 'horizontal',
-      id: crypto.randomUUID(),
-      children: [
-        { ...group }, // Groupe original
-        {
-          type: 'tabgroup',
-          id: crypto.randomUUID(),
-          tabs: [activeTab],
-          activeTab: activeTab.id
-        }
-      ],
-      sizes: [50, 50] // Tailles égales par défaut
-    }
-
-    // Remplacer le groupe dans l'arbre
-    this._replaceNode(this.layout, groupId, newContainer)
-    this._triggerAutoSave()
-    return newContainer
-  }
-
-  // SPLITS : Diviser un groupe verticalement (haut/bas)
-  splitVertical(groupId) {
-    const group = this._findGroupById(this.layout, groupId)
-    if (!group || group.type !== 'tabgroup') return null
-
-    // Diviser seulement si il y a au moins un tab
-    if (group.tabs.length === 0) return null
-
-    // Prendre le tab actif pour le nouveau groupe
-    const activeTab = group.tabs.find(t => t.id === group.activeTab)
-    if (!activeTab) return null
-
-    // Retirer le tab du groupe original
-    group.tabs = group.tabs.filter(t => t.id !== activeTab.id)
-    group.activeTab = group.tabs.length > 0 ? group.tabs[0].id : null
-
-    // Créer le nouveau container
-    const newContainer = {
-      type: 'container',
-      direction: 'vertical',
-      id: crypto.randomUUID(),
-      children: [
-        { ...group }, // Groupe original
-        {
-          type: 'tabgroup',
-          id: crypto.randomUUID(),
-          tabs: [activeTab],
-          activeTab: activeTab.id
-        }
-      ],
-      sizes: [50, 50] // Tailles égales par défaut
-    }
-
-    // Remplacer le groupe dans l'arbre
-    this._replaceNode(this.layout, groupId, newContainer)
-    this._triggerAutoSave()
-    return newContainer
-  }
-
-  // REDIMENSIONNEMENT : Mettre à jour les tailles d'un container
-  updateSizes(containerId, newSizes) {
-    const container = this._findGroupById(this.layout, containerId)
-    if (container && container.type === 'container') {
-      container.sizes = newSizes
-      this._triggerAutoSave()
-    }
-  }
-
-  // UTILITAIRES PRIVÉS : Navigation dans l'arbre
   _collectAllTabs(node) {
     if (node.type === 'tabgroup') {
       return node.tabs
@@ -451,8 +445,8 @@ export class LayoutService {
   }
 
   _findActiveTab(node) {
-    if (node.type === 'tabgroup') {
-      return node.activeTab
+    if (node.type === 'tabgroup' && node.activeTab) {
+      return node.tabs.find(tab => tab.id === node.activeTab) || null
     } else if (node.type === 'container') {
       for (const child of node.children) {
         const activeTab = this._findActiveTab(child)
@@ -477,15 +471,16 @@ export class LayoutService {
   _findFirstGroup(node) {
     if (node.type === 'tabgroup') {
       return node
-    } else if (node.type === 'container') {
+    } else if (node.type === 'container' && node.children.length > 0) {
       return this._findFirstGroup(node.children[0])
     }
     return null
   }
 
   _findGroupById(node, id) {
-    if (node.id === id) return node
-    if (node.type === 'container') {
+    if (node.id === id) {
+      return node
+    } else if (node.type === 'container') {
       for (const child of node.children) {
         const found = this._findGroupById(child, id)
         if (found) return found
@@ -496,7 +491,8 @@ export class LayoutService {
 
   _findGroupContainingTab(node, tabId) {
     if (node.type === 'tabgroup') {
-      return node.tabs.some(t => t.id === tabId) ? node : null
+      const hasTab = node.tabs.some(tab => tab.id === tabId)
+      return hasTab ? node : null
     } else if (node.type === 'container') {
       for (const child of node.children) {
         const found = this._findGroupContainingTab(child, tabId)
@@ -508,19 +504,19 @@ export class LayoutService {
 
   _replaceNode(root, targetId, newNode) {
     if (root.id === targetId) {
-      // Remplacer le root
-      this.layout = newNode
+      Object.assign(root, newNode)
       return true
     }
-    
+
     if (root.type === 'container') {
       for (let i = 0; i < root.children.length; i++) {
         if (root.children[i].id === targetId) {
           root.children[i] = newNode
           return true
-        }
-        if (this._replaceNode(root.children[i], targetId, newNode)) {
-          return true
+        } else {
+          if (this._replaceNode(root.children[i], targetId, newNode)) {
+            return true
+          }
         }
       }
     }

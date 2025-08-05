@@ -12,21 +12,9 @@
     if (!dragInfo.draggedTab) return
 
     const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
     
-    const centerX = rect.width / 2
-    const centerY = rect.height / 2
-    const threshold = 80
-
-    let zone = 'center'
-    
-    if (x < threshold) zone = 'left'
-    else if (x > rect.width - threshold) zone = 'right'
-    else if (y < threshold) zone = 'top'
-    else if (y > rect.height - threshold) zone = 'bottom'
-
-    dragDropService.setDropPreview(layoutNode.id, zone, x, y, rect.width, rect.height)
+    // Utiliser la méthode correcte du service avec rect et coordonnées mouse
+    dragDropService.setDropPreview(layoutNode.id, rect, e.clientX, e.clientY)
   }
 
   function handleContentAreaDrop(e) {

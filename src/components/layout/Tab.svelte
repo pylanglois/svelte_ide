@@ -39,7 +39,7 @@
     const dragInfo = dragDropService.getDragInfo()
     if (!dragInfo.draggedTab || dragInfo.draggedTab.id === targetTab.id) return
     
-    dragDropService.setTabDragTarget(targetTab.id)
+    dragDropService.setDragTarget(groupId, targetTab)
   }
 
   function handleDragLeave(e) {
@@ -48,7 +48,7 @@
     
     if (clientX < rect.left || clientX > rect.right || 
         clientY < rect.top || clientY > rect.bottom) {
-      dragDropService.clearTabDragTarget()
+      dragDropService.clearDragTarget()
     }
   }
 
