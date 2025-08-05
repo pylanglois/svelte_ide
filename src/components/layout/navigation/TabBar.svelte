@@ -130,7 +130,8 @@
     const dragInfo = dragDropService.getDragInfo()
     if (!dragInfo.draggedTab) return
     
-    dragDropService.setTabAreaTarget(layoutNode.id)
+    const rect = e.currentTarget.getBoundingClientRect()
+    dragDropService.setDropPreviewZone(layoutNode.id, 'tabbar', rect)
   }
 
   function handleTabAreaDrop(e) {
@@ -143,12 +144,14 @@
     const targetGroupId = layoutNode.id
     const draggedTabId = dragInfo.draggedTab.id
 
-    layoutService.moveTabBetweenGroups(
-      draggedTabId,
-      sourceGroupId,
-      targetGroupId,
-      -1
-    )
+    if (dragInfo.dropPreview?.zone === 'tabbar') {
+      layoutService.moveTabBetweenGroups(
+        draggedTabId,
+        sourceGroupId,
+        targetGroupId,
+        -1
+      )
+    }
     
     dragDropService.endDrag()
   }
@@ -156,10 +159,10 @@
 
 <div 
   class="tab-area"
-  class:drag-over={dragDropService.isTabAreaTarget(layoutNode.id)}
+  class:drag-over={dragDropService.hasDropPreview(layoutNode.id) && dragDropService.getDropPreview(layoutNode.id)?.zone === 'tabbar'}
   ondragover={handleTabAreaDragOver}
   ondrop={handleTabAreaDrop}
-  ondragleave={() => dragDropService.clearTabAreaTarget()}
+  ondragleave={() => dragDropService.clearDragTarget()}
   role="tablist"
   tabindex="0"
 >
@@ -192,5 +195,10 @@
   .tab-area.drag-over {
     background: #094771;
     box-shadow: inset 0 0 0 2px #007acc;
+  }
+
+  .tab-area.drag-over-invalid {
+    background: #4a1a1a;
+    box-shadow: inset 0 0 0 2px #ff4444;
   }
 </style>

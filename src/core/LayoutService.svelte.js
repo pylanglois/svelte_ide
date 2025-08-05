@@ -76,11 +76,17 @@ export class LayoutService {
   addTab(tab) {
     const targetGroup = this._findActiveGroup(this.layout) || this._findFirstGroup(this.layout)
     if (targetGroup) {
-      const existing = targetGroup.tabs.find(t => t.id === tab.id)
+      // Vérifier s'il y a déjà un onglet pour ce fichier dans le groupe
+      const existing = targetGroup.tabs.find(t => 
+        t.id === tab.id || (tab.fileName && t.fileName === tab.fileName)
+      )
       if (!existing) {
         targetGroup.tabs.push(tab)
+        targetGroup.activeTab = tab.id
+      } else {
+        // Activer l'onglet existant au lieu d'en créer un nouveau
+        targetGroup.activeTab = existing.id
       }
-      targetGroup.activeTab = tab.id
       this._triggerAutoSave()
     }
   }
@@ -197,6 +203,19 @@ export class LayoutService {
 
     const [tab] = sourceGroup.tabs.splice(tabIndex, 1)
 
+    // Vérifier s'il y a déjà un onglet pour ce fichier dans le groupe cible
+    const existing = targetGroup.tabs.find(t => 
+      t.id === tab.id || (tab.fileName && t.fileName === tab.fileName)
+    )
+    
+    if (existing) {
+      // Activer l'onglet existant au lieu de créer un doublon
+      targetGroup.activeTab = existing.id
+      // Remettre le tab dans le groupe source puisqu'on ne le déplace pas
+      sourceGroup.tabs.splice(tabIndex, 0, tab)
+      return true
+    }
+
     // Gérer l'activeTab du groupe source
     if (sourceGroup.activeTab === draggedTabId) {
       sourceGroup.activeTab = sourceGroup.tabs.length > 0 
@@ -236,8 +255,8 @@ export class LayoutService {
     
     if (!targetGroup || !sourceGroup) return false
     
-    // Si c'est la zone centre, faire un drop normal
-    if (zone === 'center') {
+    // Si c'est la zone centre ou tabbar, faire un drop normal avec vérification de doublons
+    if (zone === 'center' || zone === 'tabbar') {
       return this.moveTabBetweenGroups(draggedTabId, sourceGroupId, targetGroupId, -1)
     }
 

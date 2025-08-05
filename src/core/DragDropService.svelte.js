@@ -7,9 +7,6 @@ export class DragDropService {
     this.dragOverTab = $state(null)
     this.dropZones = $state([])
     
-    // Zone d'onglets comme cible
-    this.tabAreaTarget = $state(null)
-    
     // Nouveau système de prévisualisation IntelliJ-style
     this.dropPreview = $state(null) // { groupId, zone: 'center'|'top'|'bottom'|'left'|'right', rect }
   }
@@ -40,22 +37,6 @@ export class DragDropService {
     this.tabAreaTarget = null
   }
 
-  // Nouveau : Gérer la zone d'onglets comme cible
-  setTabAreaTarget(groupId) {
-    this.tabAreaTarget = groupId
-    this.targetGroup = null
-    this.dragOverTab = null
-    this.dropPreview = null
-  }
-
-  clearTabAreaTarget() {
-    this.tabAreaTarget = null
-  }
-
-  isTabAreaTarget(groupId) {
-    return this.tabAreaTarget === groupId
-  }
-
   // Nouveau : Calculer et définir la zone de prévisualisation
   setDropPreview(groupId, rect, mouseX, mouseY) {
     const zone = this.calculateDropZone(rect, mouseX, mouseY)
@@ -65,6 +46,19 @@ export class DragDropService {
       groupId,
       zone,
       rect: previewRect
+    }
+    
+    // Nettoyer les anciens états
+    this.targetGroup = null
+    this.dragOverTab = null
+  }
+
+  // Nouvelle méthode : Définir une zone de prévisualisation spécifique (pour tabbar)
+  setDropPreviewZone(groupId, zone, rect) {
+    this.dropPreview = {
+      groupId,
+      zone,
+      rect
     }
     
     // Nettoyer les anciens états
@@ -88,7 +82,6 @@ export class DragDropService {
     this.dragOverTab = null
     this.dropZones = []
     this.dropPreview = null
-    this.tabAreaTarget = null
     document.body.style.userSelect = ''
     document.body.style.cursor = ''
   }
@@ -137,6 +130,10 @@ export class DragDropService {
       
       case 'right':
         return { left: left + width / 2, top, width: width / 2, height }
+      
+      case 'tabbar':
+        // Pour la barre d'onglets, utiliser directement le rectangle fourni
+        return { left, top, width, height }
       
       default:
         return { left, top, width, height }

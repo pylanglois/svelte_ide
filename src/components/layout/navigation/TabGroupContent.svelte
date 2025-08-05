@@ -17,7 +17,8 @@
     const dragInfo = dragDropService.getDragInfo()
     if (!dragInfo.draggedTab) return
     
-    dragDropService.setTabAreaTarget(layoutNode.id)
+    const rect = e.currentTarget.getBoundingClientRect()
+    dragDropService.setDropPreviewZone(layoutNode.id, 'tabbar', rect)
   }
 
   function handleEmptyAreaDrop(e) {
@@ -30,7 +31,7 @@
     const targetGroupId = layoutNode.id
     const draggedTabId = dragInfo.draggedTab.id
 
-    if (sourceGroupId !== targetGroupId) {
+    if (dragInfo.dropPreview?.zone === 'tabbar') {
       layoutService.moveTabBetweenGroups(
         draggedTabId,
         sourceGroupId,
@@ -63,10 +64,10 @@
   <!-- Zone de drop pour tabgroup vide -->
   <div 
     class="empty-tabgroup"
-    class:drag-over={dragDropService.isTabAreaTarget(layoutNode.id)}
+    class:drag-over={dragDropService.hasDropPreview(layoutNode.id) && dragDropService.getDropPreview(layoutNode.id)?.zone === 'tabbar'}
     ondragover={handleEmptyAreaDragOver}
     ondrop={handleEmptyAreaDrop}
-    ondragleave={() => dragDropService.clearTabAreaTarget()}
+    ondragleave={() => dragDropService.clearDragTarget()}
     role="region"
     aria-label="Zone de dépôt vide"
   >
