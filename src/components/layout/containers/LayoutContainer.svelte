@@ -1,8 +1,8 @@
 <script>
   import SplitContainer from './SplitContainer.svelte'
-  import TabBar from './TabBar.svelte'
-  import DropZones from './DropZones.svelte'
-  import TabGroupContent from './TabGroupContent.svelte'
+  import TabBar from '../navigation/TabBar.svelte'
+  import DropZones from '../navigation/DropZones.svelte'
+  import TabGroupContent from '../navigation/TabGroupContent.svelte'
 
   let { layoutNode } = $props()
 </script>

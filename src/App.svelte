@@ -4,13 +4,13 @@
   import { eventBus } from '@/core/EventBusService.svelte.js'
   import { ConsoleTool, NotificationsTool } from '@/core/SystemTools.js'
 
-  import TitleBar from '@/components/layout/TitleBar.svelte'
-  import Toolbar from '@/components/layout/Toolbar.svelte'
-  import StatusBar from '@/components/layout/StatusBar.svelte'
-  import MainViewSplit from '@/components/layout/MainViewSplit.svelte'
-  import ContextMenu from '@/components/layout/ContextMenu.svelte'
-  import ToolPanel from '@/components/layout/ToolPanel.svelte'
-  import ResizeHandle from '@/components/layout/ResizeHandle.svelte'
+  import TitleBar from '@/components/layout/chrome/TitleBar.svelte'
+  import Toolbar from '@/components/layout/chrome/Toolbar.svelte'
+  import StatusBar from '@/components/layout/chrome/StatusBar.svelte'
+  import MainViewSplit from '@/components/layout/containers/MainViewSplit.svelte'
+  import ContextMenu from '@/components/layout/ui/ContextMenu.svelte'
+  import ToolPanel from '@/components/layout/chrome/ToolPanel.svelte'
+  import ResizeHandle from '@/components/layout/containers/ResizeHandle.svelte'
 
   let leftPanelWidth = $state(250)
   let rightPanelWidth = $state(250)

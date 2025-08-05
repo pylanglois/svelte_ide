@@ -1,8 +1,8 @@
 <script>
   import { layoutService } from '@/core/LayoutService.svelte.js'
   import { ideStore } from '@/stores/ideStore.svelte.js'
-  import WelcomeScreen from '@/components/layout/WelcomeScreen.svelte'
-  import LayoutContainer from '@/components/layout/LayoutContainer.svelte'
+  import WelcomeScreen from '../ui/WelcomeScreen.svelte'
+  import LayoutContainer from './LayoutContainer.svelte'
 
   // Surveillance des changements pour la sauvegarde automatique
   $effect(() => {

@@ -3,8 +3,8 @@
   import { contextMenuService } from '@/core/ContextMenuService.svelte.js'
   import { layoutService } from '@/core/LayoutService.svelte.js'
   import { dragDropService } from '@/core/DragDropService.svelte.js'
-  import TabScrollContainer from '@/components/layout/TabScrollContainer.svelte'
-  import Tab from '@/components/layout/Tab.svelte'
+  import TabScrollContainer from './TabScrollContainer.svelte'
+  import Tab from './Tab.svelte'
 
   let { layoutNode } = $props()
   let tabScrollContainer = $state(null)

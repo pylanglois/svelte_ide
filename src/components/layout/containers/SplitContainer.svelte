@@ -1,5 +1,5 @@
 <script>
-  import ResizeHandle from '@/components/layout/ResizeHandle.svelte'
+  import ResizeHandle from './ResizeHandle.svelte'
   import LayoutContainer from './LayoutContainer.svelte'
   import { layoutService } from '@/core/LayoutService.svelte.js'
 
