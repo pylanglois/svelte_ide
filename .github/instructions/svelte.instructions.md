@@ -59,3 +59,59 @@ Ces règles s'appliquent à **tout** le code que tu écris ou modifies, sans exc
 -   **Simplicité :** Garder le code (boucles, conditions) le plus simple possible. Pas de code mort.
 
 -   **Refactoring :** Lorsque tu changes un comportement existant, assure-toi de supprimer tout le code relié à l'ancien comportement et de vérifier que le reste du code fonctionne correctement.
+
+-   **console minimale :** Utiliser `console.log` uniquement pour le débogage temporaire. Ne pas laisser de logs dans le code final.
+
+## 5. RÈGLE CRITIQUE : Stratégie de Modification Efficiente
+
+**IMPORTANT : Cette règle vise à optimiser l'utilisation des outils de modification de code.**
+
+### ⚠️ INTERDICTION DES MICRO-MODIFICATIONS ⚠️
+
+- **JAMAIS** faire de modifications par petites touches successives
+- **TOUJOURS** planifier globalement avant d'exécuter
+- **OBLIGATOIRE** : Regrouper les modifications par blocs logiques
+
+### Pourquoi cette interdiction ?
+
+Les micro-modifications coûtent cher en requêtes premium et créent de la confusion. Une série de 20+ petits changements peut être remplacée par 2-3 modifications intelligentes.
+
+### Stratégie Obligatoire pour les Gros Nettoyages
+
+```markdown
+## Phase 1 : ANALYSE GLOBALE (1-2 appels d'outils)
+- Lire le fichier complet
+- Identifier TOUS les points à modifier
+- Grouper par zones logiques (ex: constructor, méthodes, utilitaires)
+
+## Phase 2 : MODIFICATION PAR BLOCS (3-5 appels maximum)
+- Bloc 1 : Zone constructor + propriétés (lignes 1-50)
+- Bloc 2 : Méthodes principales (lignes 51-200)  
+- Bloc 3 : Méthodes utilitaires (lignes 201-fin)
+
+## Phase 3 : VALIDATION (1 appel)
+- Un seul grep_search final pour vérifier
+```
+
+### Règles d'Exécution
+
+1. **Planifier d'abord** : Toujours analyser le fichier avant toute modification
+2. **Modifications groupées** : Maximum 5 appels de replace_string_in_file par fichier
+3. **Contexte large** : Inclure 5-10 lignes de contexte pour éviter les échecs
+4. **Validation finale** : Un seul appel de vérification à la fin
+
+### Anti-Pattern à Éviter
+
+```markdown
+❌ MAUVAIS : 22 appels pour nettoyer un fichier
+- replace_string_in_file (console.log #1)
+- replace_string_in_file (console.log #2)
+- replace_string_in_file (commentaire #1)
+- replace_string_in_file (commentaire #2)
+- ... (18 autres micro-modifications)
+
+✅ BON : 3 appels pour le même nettoyage
+- replace_string_in_file (tout le bloc constructor nettoyé)
+- replace_string_in_file (toutes les méthodes de restauration nettoyées)
+- replace_string_in_file (méthodes utilitaires nettoyées)
+```
