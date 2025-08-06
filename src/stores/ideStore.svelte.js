@@ -1,13 +1,13 @@
 import { Tab } from '@/core/Tab.svelte.js'
 import { eventBus } from '@/core/EventBusService.svelte.js'
 import { layoutService } from '@/core/LayoutService.svelte.js'
+import { getAuthStore } from './authStore.svelte.js'
 
 class IDEStore {
   constructor() {
     this.tools = $state([])
     
     this.statusMessage = $state('')
-    this.user = $state(null)
     this.focusedPanel = $state(null)
 
     this.draggedTool = $state(null)
@@ -45,6 +45,16 @@ class IDEStore {
 
   get activeTab() {
     return layoutService.activeTab
+  }
+
+  get user() {
+    const authStore = getAuthStore()
+    return authStore.currentUser
+  }
+
+  get isAuthenticated() {
+    const authStore = getAuthStore()
+    return authStore.isAuthenticated
   }
 
   _updateToolLists() {
@@ -296,21 +306,19 @@ class IDEStore {
     this.statusMessage = message
   }
 
-  login(user) {
-    this.user = {
-      ...user,
-      loginTime: new Date().toISOString(),
-      authType: 'temporary'
-    }
-    
-    this.restoreUserLayout(user)
+  async login(providerId) {
+    const authStore = getAuthStore()
+    return await authStore.login(providerId)
   }
 
-  logout() {
-    if (this.user) {
-      this.closeAllTabs()
-    }
-    this.user = null
+  async logout() {
+    const authStore = getAuthStore()
+    return await authStore.logout()
+  }
+
+  getAccessToken() {
+    const authStore = getAuthStore()
+    return authStore.getAccessToken()
   }
 
   closeAllTabs() {
@@ -319,7 +327,7 @@ class IDEStore {
 
   async restoreUserLayout(user) {
     try {
-      const userName = user.name || user.username
+      const userName = user.name || user.email || user.id
       const layoutKey = `ide-layout-${userName}`
       const savedData = localStorage.getItem(layoutKey)
       
@@ -330,10 +338,8 @@ class IDEStore {
       const layoutData = JSON.parse(savedData)
       
       if (layoutData.layout) {
-        // 1. Vider les tabs actuels
         this.closeAllTabs()
         
-        // 2. Collecter tous les descripteurs AVANT de restaurer la structure
         const allTabsData = this._collectTabsFromLayout(layoutData.layout)
         
         const restoredTabs = new Map()
@@ -373,7 +379,7 @@ class IDEStore {
       }
       
     } catch (error) {
-      console.error('Erreur lors de la restauration utilisateur:', error)
+      
     }
   }
 
@@ -393,10 +399,10 @@ class IDEStore {
   }
 
   saveUserLayout() {
-    if (!this.user) return
+    if (!this.isAuthenticated || !this.user) return
     
     try {
-      const userName = this.user.name || this.user.username
+      const userName = this.user.name || this.user.email || this.user.id
       const layoutKey = `ide-layout-${userName}`
       const serializableLayout = layoutService._createSerializableLayout(layoutService.layout)
       
@@ -409,7 +415,7 @@ class IDEStore {
         localStorage.setItem(layoutKey, JSON.stringify(layoutData))
       }
     } catch (error) {
-      console.warn('Sauvegarde utilisateur echouee:', error)
+      
     }
   }
 

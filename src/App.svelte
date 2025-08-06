@@ -1,6 +1,7 @@
 <script>
   import { toolManager } from '@/core/ToolManager.svelte.js'
   import { ideStore } from '@/stores/ideStore.svelte.js'
+  import { getAuthStore } from '@/stores/authStore.svelte.js'
   import { eventBus } from '@/core/EventBusService.svelte.js'
   import { ConsoleTool, NotificationsTool } from '@/core/SystemTools.js'
 
@@ -11,6 +12,9 @@
   import ContextMenu from '@/components/layout/ui/ContextMenu.svelte'
   import ToolPanel from '@/components/layout/chrome/ToolPanel.svelte'
   import ResizeHandle from '@/components/layout/containers/ResizeHandle.svelte'
+  import AuthPanel from '@/components/layout/ui/AuthPanel.svelte'
+
+  const authStore = getAuthStore()
 
   let leftPanelWidth = $state(250)
   let rightPanelWidth = $state(250)
@@ -60,6 +64,10 @@
   // Initialisation unique à la création du composant
   (async () => {
     window.toolManager = toolManager
+    ideStore.setStatusMessage('Initialisation du système...')
+    
+    await authStore.initialize()
+    
     ideStore.setStatusMessage('Chargement des outils système...')
     
     const console = new ConsoleTool()
@@ -79,7 +87,7 @@
   <ContextMenu />
   <TitleBar />
 
-  {#if ideStore.user}
+  {#if authStore.isAuthenticated}
     <div class="main-container">
       <Toolbar position="left" />
       
@@ -117,9 +125,7 @@
     
     <StatusBar />
   {:else}
-    <div class="welcome-container">
-      <MainViewSplit />
-    </div>
+    <AuthPanel />
   {/if}
 </div>
 
