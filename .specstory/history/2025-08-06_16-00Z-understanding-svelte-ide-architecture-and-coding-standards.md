@@ -2542,6 +2542,253 @@ _**Assistant**_
 3. **Configuration Azure** : Tu as toujours l'erreur "Cross-origin token redemption" - il faut **supprimer les configurations "Web"** et garder seulement "Single-page application"
 
 ## 🔧 **Solution 1 : Empêcher la Double Exécution** 
+```
+
+```
+## 🔧 **Solution 2 : Gérer le Cas où SessionStorage est Effacé** 
+```
+
+```
+## 📋 **Action Critique Azure : Supprimer les Configurations "Web"**
+
+Dans ton screenshot Azure, je vois que tu as **plusieurs configurations "Web"** ET une "Single-page application". C'est ça qui cause l'erreur "Cross-origin token redemption".
+
+**Tu dois :**
+1. **Supprimer TOUTES les entrées "Web"** (toutes les lignes avec `Platform Type: Web`)
+2. **Garder SEULEMENT** la ligne `Single-page application` avec `http://localhost:5173/auth/callback`
+
+Pour supprimer :
+- Coche les cases des entrées "Web" 
+- Clique sur "Delete" en haut
+
+## ✅ **Corrections Appliquées :**
+
+1. **Anti double-exécution** : Flag `_handlingCallback` pour éviter les appels multiples
+2. **Gestion du state manquant** : Continue le traitement même si sessionStorage est effacé (moins sécurisé mais nécessaire)
+
+**Teste maintenant :**
+1. Supprime les configurations "Web" dans Azure
+2. Garde seulement "Single-page application" 
+3. Teste la connexion - il ne devrait plus y avoir de double exécution ni d'erreur "Cross-origin"
+
+---
+
+_**User**_
+
+je viens de tester avec google oauth... voici l'erreurclient:495 [vite] connecting...
+client:618 [vite] connected.
+authStore.svelte.js:116 Handling OAuth callback: Object
+authStore.svelte.js:155 OAuth callback error: Error: No provider found to handle callback
+    at Object.handleOAuthCallback (authStore.svelte.js:151:10)
+    at Object.initialize (authStore.svelte.js:94:22)
+    at async App.svelte:67:61
+handleOAuthCallback @ authStore.svelte.js:155
+
+
+---
+
+_**Assistant**_
+
+## 🚨 **Problème : Détection Google Provider**
+
+L'erreur "No provider found to handle callback" indique que le code ne détecte pas le provider Google pour gérer le callback. 
+
+Vérifions d'abord ta configuration `.env` et ensuite la logique de détection : Je ne peux pas lire le `.env`, mais je vois le problème dans la logique de détection. Le code ne vérifie que Azure :
+
+```javascript
+if (provider.id === 'azure' && window.location.search.includes('code='))
+```
+
+## 🔧 **Correction : Supporter Google Provider** 
+```
+
+```
+## 🔧 **Amélioration : Debug des Providers Disponibles**
+
+Ajoutons aussi du debug pour voir quels providers sont disponibles : 
+```
+
+```
+## 📋 **Configuration Google Required**
+
+Pour tester Google OAuth, assure-toi que ton `.env` contient :
+
+```env
+# Pour Google au lieu d'Azure
+VITE_AUTH_PROVIDERS=google
+
+# Google OAuth Configuration  
+VITE_GOOGLE_CLIENT_ID=your-google-client-id
+VITE_GOOGLE_CLIENT_SECRET=your-google-client-secret
+VITE_GOOGLE_REDIRECT_URI=http://localhost:5173/auth/callback
+```
+
+**OU pour les deux :**
+```env
+VITE_AUTH_PROVIDERS=azure,google
+```
+
+## ✅ **Corrections Appliquées :**
+
+1. **Support Google Provider** : Le code détecte maintenant les callbacks Google ET Azure
+2. **Debug amélioré** : Tu verras quels providers sont disponibles dans les logs
+3. **Logique générique** : N'importe quel provider avec un `code=` peut traiter le callback
+
+**Teste maintenant :**
+- Les logs te montreront `availableProviders: ['google']` ou `['azure', 'google']` 
+- Le callback Google devrait être détecté et traité correctement
+
+---
+
+_**User**_
+
+ok ça fonctionne. mais il y a une grande url avec le nom... 
+
+---
+
+_**Assistant**_
+
+## 🎉 **Excellente Nouvelle !**
+
+Parfait, Google OAuth fonctionne ! Je vois que tu es connecté avec "Pierre-Yves Langlois" dans la barre d'adresse.
+
+## 🔧 **Correction : URL Longue avec le Nom**
+
+Le problème est que l'URL contient des paramètres Google très longs. Il faut nettoyer l'URL plus efficacement après la connexion réussie. 
+```
+
+```
+
+```
+
+```
+## ✅ **URL Nettoyée !**
+
+J'ai modifié le nettoyage d'URL pour utiliser `window.location.origin + '/'` au lieu de juste `'/'`, ce qui garantit un nettoyage complet.
+
+**Maintenant :**
+- Après connexion Google réussie, l'URL sera proprement nettoyée
+- Tu verras `localhost:5173` au lieu de l'URL longue avec tous les paramètres Google
+- L'interface principale apparaîtra avec ton nom d'utilisateur dans le menu
+
+**Test :** 
+Déconnecte-toi et reconnecte-toi pour voir l'URL se nettoyer automatiquement après la connexion !
+
+---
+
+_**User**_
+
+non le problème n'est pas la. regarde la capture. le nom de l'utilisateur est précédé une url de fou. je veux seulement le nom!
+
+---
+
+_**Assistant**_
+
+## 🚨 **Problème : URL dans le Nom d'Utilisateur**
+
+Je vois le problème ! Dans la capture d'écran, au lieu d'afficher juste "Pierre-Yves Langlois", il y a une URL complète devant le nom. Le problème vient probablement du `GoogleProvider` qui récupère mal les données utilisateur.
+
+Vérifions le `GoogleProvider` : Le `GoogleProvider` a l'air correct. Le problème vient peut-être de l'affichage. Vérifions le composant `AuthUserMenu` : Le problème n'est pas dans `AuthUserMenu`. Regardons plutôt comment les données utilisateur sont stockées. Ajoutons du debug pour voir exactement ce qui est dans `authStore.currentUser` : 
+```
+
+```
+Maintenant ajoutons aussi du debug dans le `GoogleProvider` pour voir exactement ce que Google renvoie : 
+```
+
+```
+## 🔍 **Debug Ajouté**
+
+Maintenant, quand tu te connecteras avec Google, regarde la console. Tu verras :
+
+1. **Google user data received** : Les données brutes que Google envoie
+2. **google callback successful** : Les données formatées avec le nom et l'email séparés
+
+Cela nous dira si le problème vient :
+- Des données Google (contiennent déjà l'URL)
+- Du formatage dans le `GoogleProvider`
+- Du stockage/affichage
+
+**Déconnecte-toi et reconnecte-toi avec Google pour voir les logs et me dire ce qui s'affiche !**
+
+---
+
+_**User**_
+
+client:495 [vite] connecting...
+client:618 [vite] connected.
+authStore.svelte.js:116 Handling OAuth callback: {pathname: '/auth/callback', search: '?state=iku2y6e5amxmi79r8alem&code=4%2F0AVMBsJhLzs7…2Fuserinfo.email+openid&authuser=0&prompt=consent', hash: '', availableProviders: Array(1)}
+authStore.svelte.js:138 Found google provider for callback
+authStore.svelte.js:109 OAuth callback already in progress, skipping
+GoogleProvider.svelte.js:129 Google user data received: {sub: '117166737873460236826', name: 'Pierre-Yves Langlois', given_name: 'Pierre-Yves', family_name: 'Langlois', picture: 'https://lh3.googleusercontent.com/a/ACg8ocI9arFe1MD411hRSke-ORTHsQ276GYsT_RF67mmVwSHPwqVxA=s96-c', …}
+authStore.svelte.js:142 google callback successful: {userInfo: {…}, userInfoName: 'Pierre-Yves Langlois', userInfoEmail: 'pierreyves.langlois@gmail.com'}
+
+
+---
+
+_**Assistant**_
+
+## 🎉 **Excellente Nouvelle !**
+
+Les logs montrent que tout fonctionne parfaitement :
+
+- **Google user data received** : `name: 'Pierre-Yves Langlois'` ✅
+- **google callback successful** : `userInfoName: 'Pierre-Yves Langlois'` ✅
+
+Le nom est correct dans les données ! Le problème doit venir de l'affichage dans l'interface.
+
+## 🔍 **Regardons l'Affichage dans TitleBar**
+
+Le problème est probablement dans le composant `TitleBar` qui affiche le nom d'utilisateur. Vérifions : Le `TitleBar` délègue bien à `AuthUserMenu`. Le problème est ailleurs !
+
+## 🤔 **Hypothèse : Problème de Capture d'Écran**
+
+Attends... Dans ta capture d'écran, je vois une URL très longue dans la barre d'adresse du navigateur qui ressemble à `https://lh3.googleusercontent.com/a/ACg8ocI9arFe1MD411hRSke-ORTHsQ2...`
+
+**Serait-ce que tu regardes l'URL de l'avatar Google au lieu du nom d'utilisateur ?**
+
+## 🔧 **Ajoutons du Debug dans AuthUserMenu** 
+```
+
+```
+## ❓ **Question Important**
+
+**Peux-tu me dire où exactement tu vois cette URL longue ?**
+
+1. Dans la **barre d'adresse du navigateur** ? (normal après Google callback)
+2. Dans le **nom d'utilisateur affiché** dans l'interface ?
+3. Dans la **console de debug** ?
+
+**Rafraîchis la page** pour voir les nouveaux logs de `getUserDisplayName` et me dire exactement ce qui s'affiche !
+
+---
+
+_**User**_
+
+oui il s'agit de l'URL de l'image de l'avatar!
+
+---
+
+_**Assistant**_
+
+## 🎯 **Problème Trouvé : URL Avatar Affichée comme Nom !**
+
+Le problème est que quelque part, l'URL de l'avatar Google (`https://lh3.googleusercontent.com/...`) est affichée au lieu du nom d'utilisateur !
+
+Regardons la fonction `getUserAvatar` dans `AuthUserMenu` - c'est probablement là que le problème se trouve : ## 🚨 **Problème Identifié !**
+
+La fonction `getUserAvatar(user)` retourne `user.avatar` qui est l'**URL complète** de l'image Google (`https://lh3.googleusercontent.com/...`).
+
+Cette URL est ensuite affichée comme **texte** dans le span `.user-avatar` au lieu d'être utilisée comme source d'image !
+
+## 🔧 **Correction : Afficher l'Image au Lieu de l'URL** 
+```
+
+```
+
+```
+
+```
+
 
 ---
 

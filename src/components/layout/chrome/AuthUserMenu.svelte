@@ -67,14 +67,22 @@
   }
 
   function getUserAvatar(user) {
-    if (user?.avatar) {
-      return user.avatar
-    }
+    // Pour les URLs d'images, on ne retourne que l'emoji par défaut
+    // L'image sera gérée séparément
     return '👤'
   }
 
+  function getUserAvatarImage(user) {
+    if (user?.avatar && user.avatar.startsWith('http')) {
+      return user.avatar
+    }
+    return null
+  }
+
   function getUserDisplayName(user) {
-    return user?.name || user?.email || 'Utilisateur'
+    const displayName = user?.name || user?.email || 'Utilisateur'
+    console.log('getUserDisplayName called:', { user, displayName })
+    return displayName
   }
 </script>
 
@@ -83,7 +91,13 @@
 <div class="user-section">
   {#if authStore.isAuthenticated && authStore.currentUser}
     <button class="user-btn" onclick={toggleUserMenu}>
-      <span class="user-avatar">{getUserAvatar(authStore.currentUser)}</span>
+      <span class="user-avatar">
+        {#if getUserAvatarImage(authStore.currentUser)}
+          <img src={getUserAvatarImage(authStore.currentUser)} alt="Avatar" />
+        {:else}
+          {getUserAvatar(authStore.currentUser)}
+        {/if}
+      </span>
       <span class="username">{getUserDisplayName(authStore.currentUser)}</span>
       <span class="dropdown-arrow" class:rotated={userMenu}>▼</span>
     </button>
@@ -91,7 +105,13 @@
     {#if userMenu}
       <div class="user-menu">
         <div class="user-info">
-          <div class="user-avatar-large">{getUserAvatar(authStore.currentUser)}</div>
+          <div class="user-avatar-large">
+            {#if getUserAvatarImage(authStore.currentUser)}
+              <img src={getUserAvatarImage(authStore.currentUser)} alt="Avatar" />
+            {:else}
+              {getUserAvatar(authStore.currentUser)}
+            {/if}
+          </div>
           <div class="user-details">
             <div class="user-name">{getUserDisplayName(authStore.currentUser)}</div>
             <div class="user-status">Connecté via {authStore.currentUser.provider || 'OAuth'}</div>
@@ -184,6 +204,18 @@
 
   .user-avatar {
     font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+  }
+
+  .user-avatar img {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    object-fit: cover;
   }
 
   .username {
@@ -229,6 +261,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .user-avatar-large img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
   }
 
   .user-details {

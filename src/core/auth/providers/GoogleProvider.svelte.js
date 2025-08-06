@@ -3,9 +3,9 @@ import { AuthProvider } from '@/core/auth/AuthProvider.svelte.js'
 export class GoogleProvider extends AuthProvider {
   constructor(config) {
     super('google', 'Google', config)
-    this.authUrl = 'https://accounts.google.com/oauth2/v2/auth'
+    this.authUrl = 'https://accounts.google.com/o/oauth2/v2/auth'
     this.tokenUrl = 'https://oauth2.googleapis.com/token'
-    this.userInfoUrl = 'https://www.googleapis.com/oauth2/v2/userinfo'
+    this.userInfoUrl = 'https://openidconnect.googleapis.com/v1/userinfo'
     this.scope = 'openid profile email'
   }
 
@@ -126,8 +126,10 @@ export class GoogleProvider extends AuthProvider {
 
     const userData = await response.json()
     
+    console.log('Google user data received:', userData)
+    
     return {
-      id: userData.id,
+      id: userData.sub || userData.id,
       email: userData.email,
       name: userData.name,
       provider: 'google',
