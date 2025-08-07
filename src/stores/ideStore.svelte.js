@@ -203,6 +203,7 @@ class IDEStore {
 
   addTab(tab) {
     layoutService.addTab(tab)
+    this.saveUserLayout()
   }
 
   _generateTabId() {
@@ -250,17 +251,20 @@ class IDEStore {
     const closedTabId = layoutService.closeTab(tabId)
     if (closedTabId) {
       eventBus.publish('tabs:closed', { tabId: closedTabId })
+      this.saveUserLayout()
     }
   }
 
   reorderTabs(newTabsOrder) {
     layoutService.reorderTabs(newTabsOrder)
+    this.saveUserLayout()
   }
 
   setActiveTab(tabId) {
     const tab = layoutService.setActiveTab(tabId)
     if (tab) {
       eventBus.publish('tabs:activated', tab)
+      this.saveUserLayout()
     } else if (tabId === null) {
       eventBus.publish('tabs:activated', null)
     }
@@ -327,8 +331,8 @@ class IDEStore {
 
   async restoreUserLayout(user) {
     try {
-      const userName = user.name || user.email || user.id
-      const layoutKey = `ide-layout-${userName}`
+      const userKey = `${user.provider}-${user.email}`
+      const layoutKey = `ide-layout-${userKey}`
       const savedData = localStorage.getItem(layoutKey)
       
       if (!savedData) {
@@ -352,7 +356,6 @@ class IDEStore {
             
             const hydrateCallback = (component, data = {}) => {
               tab.component = component
-              
               if (tabData.descriptor.type === 'file-editor') {
                 tab.fileName = tabData.descriptor.resourceId
                 tab.content = data.content || ''
@@ -369,17 +372,23 @@ class IDEStore {
               descriptor: tabData.descriptor,
               tabId: tabData.id,
               hydrateCallback: hydrateCallback,
-              userId: userName
+              userId: user.email
             })
           }
         }
         
         const restoredLayout = this._reconstructLayout(layoutData.layout, restoredTabs)
+        
+        // Si aucun onglet n'est actif mais qu'il y a des onglets, activer le premier
+        if (!restoredLayout.activeTab && restoredLayout.tabs.length > 0) {
+          restoredLayout.activeTab = restoredLayout.tabs[0].id
+        }
+        
         layoutService.layout = restoredLayout
       }
       
     } catch (error) {
-      
+      console.error('Error restoring user layout:', error)
     }
   }
 
@@ -387,7 +396,8 @@ class IDEStore {
     if (layoutData.type === 'tabgroup') {
       return {
         ...layoutData,
-        tabs: layoutData.tabs.map(tabData => tabsMap.get(tabData.id)).filter(Boolean)
+        tabs: layoutData.tabs.map(tabData => tabsMap.get(tabData.id)).filter(Boolean),
+        activeTab: layoutData.activeTab
       }
     } else if (layoutData.type === 'container') {
       return {
@@ -402,20 +412,21 @@ class IDEStore {
     if (!this.isAuthenticated || !this.user) return
     
     try {
-      const userName = this.user.name || this.user.email || this.user.id
-      const layoutKey = `ide-layout-${userName}`
+      const userKey = `${this.user.provider}-${this.user.email}`
+      const layoutKey = `ide-layout-${userKey}`
       const serializableLayout = layoutService._createSerializableLayout(layoutService.layout)
       
       if (serializableLayout) {
         const layoutData = {
           layout: serializableLayout,
           timestamp: Date.now(),
-          userId: userName
+          version: '1.0'
         }
+        
         localStorage.setItem(layoutKey, JSON.stringify(layoutData))
       }
     } catch (error) {
-      
+      console.error('Error saving user layout:', error)
     }
   }
 

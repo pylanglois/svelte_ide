@@ -165,12 +165,28 @@ export class AzureProvider extends AuthProvider {
 
     const userData = await response.json()
     
+    let avatar = null
+    try {
+      const photoResponse = await fetch('https://graph.microsoft.com/v1.0/me/photo/$value', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+      
+      if (photoResponse.ok) {
+        const photoBlob = await photoResponse.blob()
+        avatar = URL.createObjectURL(photoBlob)
+      }
+    } catch (photoError) {
+      console.log('Azure: No profile photo available')
+    }
+    
     return {
       id: userData.id,
       email: userData.mail || userData.userPrincipalName,
       name: userData.displayName,
       provider: 'azure',
-      avatar: null
+      avatar: avatar
     }
   }
 

@@ -71,15 +71,25 @@
     
     ideStore.setStatusMessage('Chargement des outils système...')
     
-    const console = new ConsoleTool()
-    toolManager.registerTool(console)
+    const consoleTool = new ConsoleTool()
+    toolManager.registerTool(consoleTool)
     toolManager.registerTool(new NotificationsTool())
 
     // Activation de la console par défaut
-    ideStore.toggleTool(console.id)
+    ideStore.toggleTool(consoleTool.id)
 
     ideStore.setStatusMessage('Chargement des outils externes...')
     await toolManager.loadTools()
+    
+    // Restaurer le layout utilisateur après le chargement des outils
+    if (authStore.isAuthenticated && authStore.currentUser) {
+      try {
+        await ideStore.restoreUserLayout(authStore.currentUser)
+      } catch (layoutError) {
+        console.warn('App: Failed to restore user layout:', layoutError)
+      }
+    }
+    
     ideStore.setStatusMessage('IDE prêt')
   })()
 </script>

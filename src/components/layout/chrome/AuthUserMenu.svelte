@@ -73,7 +73,7 @@
   }
 
   function getUserAvatarImage(user) {
-    if (user?.avatar && user.avatar.startsWith('http')) {
+    if (user?.avatar && (user.avatar.startsWith('http') || user.avatar.startsWith('blob:'))) {
       return user.avatar
     }
     return null
@@ -81,7 +81,6 @@
 
   function getUserDisplayName(user) {
     const displayName = user?.name || user?.email || 'Utilisateur'
-    console.log('getUserDisplayName called:', { user, displayName })
     return displayName
   }
 </script>

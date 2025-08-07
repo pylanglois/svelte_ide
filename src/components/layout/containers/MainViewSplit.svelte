@@ -3,12 +3,12 @@
   import { ideStore } from '@/stores/ideStore.svelte.js'
   import LayoutContainer from './LayoutContainer.svelte'
 
-  // Surveillance des changements pour la sauvegarde automatique
-  $effect(() => {
-    if (layoutService.layout) {
-      layoutService._triggerAutoSave()
-    }
-  })
+  // TODO: La sauvegarde automatique sera gérée par ideStore
+  // $effect(() => {
+  //   if (layoutService.layout) {
+  //     layoutService._triggerAutoSave()
+  //   }
+  // })
 </script>
 
 <div class="main-view-split">

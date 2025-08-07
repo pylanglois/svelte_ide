@@ -9,7 +9,8 @@ class ExplorerRestorationService {
 
   init() {
     eventBus.subscribe('tab:hydrate', (hydrateEvent) => {
-      if (hydrateEvent.descriptor.type === 'file-editor') {
+      if (hydrateEvent.descriptor.type === 'file-editor' && 
+          hydrateEvent.descriptor.toolId === 'explorer') {
         this.handleHydrate(hydrateEvent)
       }
     })

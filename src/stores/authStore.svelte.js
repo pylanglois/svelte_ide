@@ -1,6 +1,10 @@
 import { AuthManager } from '@/core/auth/AuthManager.svelte.js'
 import { AzureProvider, GoogleProvider, MockProvider } from '@/core/auth/providers/index.js'
 
+function getIdeStore() {
+  return import('@/stores/ideStore.svelte.js').then(module => module.ideStore)
+}
+
 function initializeAuthProviders(authManager) {
   const enabledProviders = import.meta.env.VITE_AUTH_PROVIDERS?.split(',') || []
   let hasRealProviders = false
@@ -100,7 +104,6 @@ function createAuthStore() {
 
     async initialize() {
       if (initialized || initializing) {
-        console.log('AuthStore: Already initialized or initializing, skipping')
         return
       }
 
@@ -109,7 +112,6 @@ function createAuthStore() {
         isLoading = true
         error = null
         
-        console.log('AuthStore: Initializing...')
         initializeAuthProviders(authManager)
         await authManager.initializeProviders()
         
@@ -123,14 +125,30 @@ function createAuthStore() {
             // Forcer la mise à jour réactive
             isAuthenticated = authManager.isAuthenticated
             currentUser = authManager.currentUser
+            
+            // Restaurer le layout utilisateur après une authentification réussie
+            if (currentUser) {
+              try {
+                const ideStore = await getIdeStore()
+                await ideStore.restoreUserLayout(currentUser)
+              } catch (layoutError) {
+                console.warn('AuthStore: Failed to restore user layout:', layoutError)
+              }
+            }
           } else if (result.error) {
             error = result.error
           }
         }
         
+        // Après l'initialisation, vérifier si l'utilisateur est déjà authentifié (reload de page)
+        // La restauration du layout sera faite plus tard via App.svelte après le chargement des outils
+        if (authManager.isAuthenticated && authManager.currentUser) {
+          isAuthenticated = authManager.isAuthenticated
+          currentUser = authManager.currentUser
+        }
+        
         initialized = true
         availableProviders = authManager.getAvailableProviders()
-        console.log('AuthStore: Initialization completed')
       } catch (err) {
         console.error('AuthStore: Initialization error:', err)
         error = err.message
@@ -159,6 +177,16 @@ function createAuthStore() {
           isAuthenticated = authManager.isAuthenticated
           currentUser = authManager.currentUser
           console.log(`AuthStore: Login successful with ${providerId}`)
+          
+          // Restaurer le layout utilisateur après une authentification réussie
+          if (currentUser) {
+            try {
+              const ideStore = await getIdeStore()
+              await ideStore.restoreUserLayout(currentUser)
+            } catch (layoutError) {
+              console.warn('AuthStore: Failed to restore user layout:', layoutError)
+            }
+          }
         } else {
           error = result.error
         }
