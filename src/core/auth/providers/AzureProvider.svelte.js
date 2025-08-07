@@ -8,15 +8,11 @@ export class AzureProvider extends AuthProvider {
   }
 
   requiredConfigKeys() {
-    return ['clientId', 'tenantId', 'redirectUri']
+    return ['clientId', 'tenantId']
   }
 
   async initialize() {
     await super.initialize()
-    
-    if (window.location.hash.includes('code=') || window.location.search.includes('code=')) {
-      await this.handleCallback()
-    }
   }
 
   async login() {
@@ -24,13 +20,13 @@ export class AzureProvider extends AuthProvider {
     const codeVerifier = this.generateCodeVerifier()
     const codeChallenge = await this.generateCodeChallenge(codeVerifier)
     
-    sessionStorage.setItem('oauth_state', state)
-    sessionStorage.setItem('oauth_code_verifier', codeVerifier)
+    sessionStorage.setItem(this.getStorageKey('state'), state)
+    sessionStorage.setItem(this.getStorageKey('code_verifier'), codeVerifier)
 
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       response_type: 'code',
-      redirect_uri: this.config.redirectUri,
+      redirect_uri: this.getRedirectUri(),
       scope: this.scope,
       state: state,
       code_challenge: codeChallenge,
@@ -38,15 +34,19 @@ export class AzureProvider extends AuthProvider {
     })
 
     const authUrl = `${this.authUrl}/${this.config.tenantId}/oauth2/v2.0/authorize?${params}`
+    console.log(`Azure OAuth: Redirecting to ${authUrl}`)
     
-    return new Promise((resolve, reject) => {
-      this.loginResolve = resolve
-      this.loginReject = reject
-      window.location.href = authUrl
-    })
+    window.location.href = authUrl
+    
+    return {
+      success: true,
+      redirected: true
+    }
   }
 
-  async handleCallback() {
+  async handleOwnCallback() {
+    console.log('AzureProvider.handleOwnCallback started')
+    
     const urlParams = new URLSearchParams(window.location.search)
     const code = urlParams.get('code')
     const state = urlParams.get('state')
@@ -57,46 +57,62 @@ export class AzureProvider extends AuthProvider {
     if (error) {
       const errorDescription = urlParams.get('error_description')
       console.error('Azure OAuth error:', { error, errorDescription })
-      throw new Error(`OAuth error: ${error} - ${errorDescription}`)
+      return {
+        success: false,
+        error: `OAuth error: ${error} - ${errorDescription}`
+      }
     }
 
-    const storedState = sessionStorage.getItem('oauth_state')
-    const codeVerifier = sessionStorage.getItem('oauth_code_verifier')
+    const storedState = sessionStorage.getItem(this.getStorageKey('state'))
+    const codeVerifier = sessionStorage.getItem(this.getStorageKey('code_verifier'))
     
-    console.log('State validation:', { receivedState: state, storedState, codeVerifier: !!codeVerifier })
+    console.log('Azure state validation:', { receivedState: state, storedState, codeVerifier: !!codeVerifier })
 
     if (!state || state !== storedState) {
-      console.error('State mismatch:', { received: state, stored: storedState })
-      
-      // Si le state est manquant mais qu'on a un code valide, c'est probablement un double appel
-      if (!storedState && code) {
-        console.warn('SessionStorage cleared but code present - possible double callback, attempting to continue')
-        // On va quand même essayer de traiter le callback mais sans vérification du state
-        // C'est moins sécurisé mais nécessaire pour gérer les doubles appels
-      } else {
-        throw new Error('Invalid state parameter - possible CSRF attack or session expired')
+      console.error('Azure state mismatch:', { received: state, stored: storedState })
+      return {
+        success: false,
+        error: 'Invalid state parameter - possible CSRF attack'
       }
     }
 
-    // Nettoyer uniquement si on a le state correct ou si on force le traitement
-    if (storedState || code) {
-      sessionStorage.removeItem('oauth_state')
-      sessionStorage.removeItem('oauth_code_verifier')
+    if (!code) {
+      console.error('No authorization code received from Azure')
+      return {
+        success: false,
+        error: 'No authorization code received'
+      }
     }
 
-    if (code) {
+    sessionStorage.removeItem(this.getStorageKey('state'))
+    sessionStorage.removeItem(this.getStorageKey('code_verifier'))
+
+    try {
+      console.log('Exchanging Azure code for tokens...')
       const tokenData = await this.exchangeCodeForTokens(code, codeVerifier)
-      const userInfo = await this.getUserInfo(tokenData.access_token)
+      console.log('Azure token exchange successful')
       
+      console.log('Fetching Azure user info...')
+      const userInfo = await this.getUserInfo(tokenData.access_token)
+      console.log('Azure user info received:', userInfo)
+      
+      console.log('AzureProvider.handleOwnCallback completed successfully')
       return {
-        accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token,
-        expiresIn: tokenData.expires_in,
+        success: true,
+        tokens: {
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token,
+          expiresIn: tokenData.expires_in
+        },
         userInfo: userInfo
       }
+    } catch (err) {
+      console.error('Azure callback processing error:', err)
+      return {
+        success: false,
+        error: err.message
+      }
     }
-
-    throw new Error('No authorization code received')
   }
 
   async exchangeCodeForTokens(code, codeVerifier) {
@@ -106,7 +122,7 @@ export class AzureProvider extends AuthProvider {
       client_id: this.config.clientId,
       grant_type: 'authorization_code',
       code: code,
-      redirect_uri: this.config.redirectUri,
+      redirect_uri: this.getRedirectUri(),
       code_verifier: codeVerifier
     })
 
@@ -127,7 +143,7 @@ export class AzureProvider extends AuthProvider {
         endpoint: tokenEndpoint,
         clientId: this.config.clientId,
         tenantId: this.config.tenantId,
-        redirectUri: this.config.redirectUri
+        redirectUri: this.getRedirectUri()
       })
       throw new Error(`Token exchange failed: ${error.error_description || error.error}`)
     }
@@ -177,20 +193,27 @@ export class AzureProvider extends AuthProvider {
 
     if (!response.ok) {
       const error = await response.json()
-      throw new Error(`Token refresh failed: ${error.error_description || error.error}`)
+      return {
+        success: false,
+        error: `Token refresh failed: ${error.error_description || error.error}`
+      }
     }
 
     const tokenData = await response.json()
     
     return {
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token || refreshToken,
-      expiresIn: tokenData.expires_in
+      success: true,
+      tokens: {
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token || refreshToken,
+        expiresIn: tokenData.expires_in
+      }
     }
   }
 
   async logout() {
-    const logoutUrl = `${this.authUrl}/${this.config.tenantId}/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(this.config.redirectUri)}`
+    const logoutUrl = `${this.authUrl}/${this.config.tenantId}/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.origin)}`
     window.location.href = logoutUrl
+    return { success: true }
   }
 }

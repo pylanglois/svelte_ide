@@ -125,20 +125,13 @@
       </div>
     {/if}
   {:else if authStore.initialized && authStore.availableProviders.length > 0}
-    <div class="login-buttons">
-      {#each authStore.availableProviders as provider}
-        <button class="login-btn" onclick={() => handleLogin(provider.id)} disabled={authStore.isLoading}>
-          {#if authStore.isLoading}
-            Connexion...
-          {:else}
-            Se connecter via {provider.name}
-          {/if}
-        </button>
-      {/each}
+    <!-- Interface de connexion déplacée vers WelcomeScreen -->
+    <div class="auth-status">
+      <span class="status-text">Non connecté</span>
     </div>
   {:else if authStore.initialized}
     <div class="no-providers">
-      <span class="status-text">Aucun fournisseur d'authentification configuré</span>
+      <span class="status-text">Configuration requise</span>
     </div>
   {:else}
     <div class="loading">
@@ -153,6 +146,15 @@
     align-items: center;
     gap: 8px;
     position: relative;
+  }
+
+  .auth-status {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    background: transparent;
+    border: 1px solid #3e3e42;
+    border-radius: 4px;
   }
 
   .login-buttons {

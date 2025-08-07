@@ -19,6 +19,19 @@ export class AuthProvider {
     return []
   }
 
+  getCallbackPath() {
+    return `/auth/${this.id}/callback`
+  }
+
+  getRedirectUri() {
+    return `${window.location.origin}${this.getCallbackPath()}`
+  }
+
+  canHandleCallback(currentPath) {
+    return currentPath === this.getCallbackPath() || 
+           (currentPath === '/auth/callback' && window.location.search.includes('state='))
+  }
+
   async initialize() {
     if (!this.isConfigured) {
       throw new Error(`Provider ${this.id} is not properly configured`)
@@ -30,8 +43,12 @@ export class AuthProvider {
     throw new Error('login() must be implemented by provider')
   }
 
+  async handleOwnCallback() {
+    throw new Error('handleOwnCallback() must be implemented by provider')
+  }
+
   async logout() {
-    throw new Error('logout() must be implemented by provider') 
+    return { success: true }
   }
 
   async refreshToken(refreshToken) {
@@ -59,5 +76,9 @@ export class AuthProvider {
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=/g, '')
+  }
+
+  getStorageKey(suffix) {
+    return `${this.id}_oauth_${suffix}`
   }
 }

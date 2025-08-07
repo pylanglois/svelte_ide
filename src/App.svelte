@@ -13,6 +13,7 @@
   import ToolPanel from '@/components/layout/chrome/ToolPanel.svelte'
   import ResizeHandle from '@/components/layout/containers/ResizeHandle.svelte'
   import AuthPanel from '@/components/layout/ui/AuthPanel.svelte'
+  import WelcomeScreen from '@/components/layout/ui/WelcomeScreen.svelte'
 
   const authStore = getAuthStore()
 
@@ -125,7 +126,7 @@
     
     <StatusBar />
   {:else}
-    <AuthPanel />
+    <WelcomeScreen />
   {/if}
 </div>
 

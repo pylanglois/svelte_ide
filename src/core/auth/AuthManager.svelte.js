@@ -32,6 +32,7 @@ export class AuthManager {
       throw new Error('Invalid provider')
     }
     this.providers.set(provider.id, provider)
+    console.log(`AuthManager: Registered provider ${provider.id}`)
   }
 
   getAvailableProviders() {
@@ -42,48 +43,100 @@ export class AuthManager {
     }))
   }
 
+  findProviderForCallback(currentPath) {
+    for (const [id, provider] of this.providers) {
+      if (provider.canHandleCallback(currentPath)) {
+        console.log(`AuthManager: Found provider ${id} for callback path ${currentPath}`)
+        return provider
+      }
+    }
+    console.log(`AuthManager: No provider found for callback path ${currentPath}`)
+    return null
+  }
+
+  async handleCallback() {
+    const currentPath = window.location.pathname
+    console.log(`AuthManager: Handling callback for path ${currentPath}`)
+    
+    const provider = this.findProviderForCallback(currentPath)
+    
+    if (!provider) {
+      console.log('AuthManager: No provider can handle this callback')
+      return {
+        success: false,
+        error: 'No provider found for this callback URL'
+      }
+    }
+
+    console.log(`AuthManager: Delegating callback to ${provider.id}`)
+    
+    // Vérifier si on a déjà traité ce callback pour éviter les doubles traitements
+    const callbackKey = `callback_processed_${provider.id}_${window.location.search}`
+    if (sessionStorage.getItem(callbackKey)) {
+      console.log(`AuthManager: Callback already processed for ${provider.id}, skipping`)
+      return { success: false, error: 'Callback already processed' }
+    }
+    
+    const result = await provider.handleOwnCallback()
+    
+    if (result.success) {
+      this.tokenManager.setTokens(
+        result.tokens.accessToken,
+        result.tokens.refreshToken,
+        result.tokens.expiresIn,
+        result.userInfo
+      )
+      this.activeProvider = provider
+      this._isAuthenticated = true
+      this._currentUser = result.userInfo
+      
+      console.log(`AuthManager: Authentication successful with ${provider.id}`)
+      
+      // Marquer ce callback comme traité
+      sessionStorage.setItem(callbackKey, 'true')
+      
+      // Nettoyer l'URL et rediriger vers la racine
+      window.history.replaceState({}, document.title, window.location.origin + '/')
+      
+      // Nettoyer le marqueur après redirection
+      setTimeout(() => sessionStorage.removeItem(callbackKey), 100)
+    }
+    
+    return result
+  }
+
   async login(providerId) {
     const provider = this.providers.get(providerId)
     if (!provider) {
-      throw new Error(`Provider ${providerId} not found`)
+      return {
+        success: false,
+        error: `Provider ${providerId} not found`
+      }
     }
 
-    try {
-      const result = await provider.login()
-      
-      if (result.success && result.tokens) {
-        this.tokenManager.setTokens(
-          result.tokens.accessToken,
-          result.tokens.refreshToken,
-          result.tokens.expiresIn,
-          result.userInfo
-        )
-        this.activeProvider = provider
-        this._isAuthenticated = true
-        this._currentUser = result.userInfo
-        
-        return { success: true, user: result.userInfo }
-      }
-      
-      throw new Error(result.error || 'Login failed')
-    } catch (error) {
-      throw error
-    }
+    console.log(`AuthManager: Starting login with ${providerId}`)
+    return await provider.login()
   }
 
   async logout() {
+    console.log('AuthManager: Starting logout')
+    
     try {
       if (this.activeProvider) {
         await this.activeProvider.logout()
       }
     } catch (error) {
-      
+      console.warn('AuthManager: Provider logout failed:', error)
     }
     
     this.tokenManager.clear()
     this.activeProvider = null
     this._isAuthenticated = false
     this._currentUser = null
+    
+    console.log('AuthManager: Logout completed')
+    
+    return { success: true }
   }
 
   getAccessToken() {
@@ -92,32 +145,76 @@ export class AuthManager {
 
   async refreshToken() {
     if (!this.activeProvider) {
-      throw new Error('No active provider for token refresh')
+      return {
+        success: false,
+        error: 'No active provider for token refresh'
+      }
     }
 
     try {
       const refreshToken = this.tokenManager.getRefreshToken()
       if (!refreshToken) {
-        throw new Error('No refresh token available')
+        return {
+          success: false,
+          error: 'No refresh token available'
+        }
       }
 
+      console.log(`AuthManager: Refreshing token with ${this.activeProvider.id}`)
       const result = await this.activeProvider.refreshToken(refreshToken)
       
-      if (result.success && result.tokens) {
-        this.tokenManager.setTokens(result.tokens, result.userInfo || this._currentUser)
-        return result.tokens.accessToken
+      if (result.success) {
+        this.tokenManager.setTokens(
+          result.tokens.accessToken,
+          result.tokens.refreshToken,
+          result.tokens.expiresIn,
+          this._currentUser
+        )
+        console.log('AuthManager: Token refresh successful')
+        return { success: true, accessToken: result.tokens.accessToken }
       }
       
-      throw new Error(result.error || 'Token refresh failed')
-    } catch (error) {
+      console.error('AuthManager: Token refresh failed:', result.error)
       this._isAuthenticated = false
       this._currentUser = null
       this.tokenManager.clear()
-      throw error
+      
+      return result
+    } catch (error) {
+      console.error('AuthManager: Token refresh error:', error)
+      this._isAuthenticated = false
+      this._currentUser = null
+      this.tokenManager.clear()
+      
+      return {
+        success: false,
+        error: error.message
+      }
     }
   }
 
   async initializeProviders() {
+    console.log('AuthManager: Initializing providers...')
+    const successfulProviders = []
+    const failedProviders = []
     
+    for (const [id, provider] of this.providers) {
+      try {
+        await provider.initialize()
+        successfulProviders.push(id)
+        console.log(`AuthManager: Provider ${id} initialized successfully`)
+      } catch (error) {
+        failedProviders.push({ id, error: error.message })
+        console.warn(`AuthManager: Failed to initialize provider ${id}:`, error.message)
+        // Retirer le provider défaillant
+        this.providers.delete(id)
+      }
+    }
+    
+    console.log(`AuthManager: Initialization complete - ${successfulProviders.length} successful, ${failedProviders.length} failed`)
+    
+    if (this.providers.size === 0) {
+      console.warn('AuthManager: No providers available after initialization')
+    }
   }
 }

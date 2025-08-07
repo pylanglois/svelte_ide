@@ -1,11 +1,8 @@
-import { AuthProvider } from '../AuthProvider.svelte.js'
+import { AuthProvider } from '@/core/auth/AuthProvider.svelte.js'
 
 export class MockProvider extends AuthProvider {
   constructor(config = {}) {
-    super()
-    
-    this.id = 'mock'
-    this.name = 'Mock Provider'
+    super('mock', 'Mock Provider', config)
     this.icon = '🧪'
     this.config = {
       simulateDelay: config.simulateDelay ?? 1000,
@@ -20,25 +17,33 @@ export class MockProvider extends AuthProvider {
     }
   }
 
-  get isConfigured() {
-    return true
+  requiredConfigKeys() {
+    return []
   }
 
-  validateConfig() {
-    return true
+  canHandleCallback(currentPath) {
+    // MockProvider ne gère pas de callback OAuth réel
+    return false
   }
 
   async initialize() {
-    
+    await super.initialize()
   }
 
   async login() {
+    console.log('MockProvider: Starting mock authentication')
+    
     if (this.config.simulateDelay > 0) {
+      console.log(`MockProvider: Simulating ${this.config.simulateDelay}ms delay`)
       await new Promise(resolve => setTimeout(resolve, this.config.simulateDelay))
     }
 
     if (this.config.shouldFail) {
-      throw new Error('Mock authentication failed (simulated)')
+      console.log('MockProvider: Simulating authentication failure')
+      return {
+        success: false,
+        error: 'Mock authentication failed (simulated)'
+      }
     }
 
     const mockTokens = {
@@ -53,6 +58,7 @@ export class MockProvider extends AuthProvider {
       loginTime: new Date().toISOString()
     }
 
+    console.log('MockProvider: Authentication successful')
     return {
       success: true,
       tokens: mockTokens,
@@ -60,21 +66,38 @@ export class MockProvider extends AuthProvider {
     }
   }
 
+  async handleOwnCallback() {
+    // MockProvider ne devrait jamais être appelé pour un callback
+    console.warn('MockProvider: handleOwnCallback called but MockProvider does not handle OAuth callbacks')
+    return {
+      success: false,
+      error: 'MockProvider does not handle OAuth callbacks'
+    }
+  }
+
   async logout() {
+    console.log('MockProvider: Starting logout')
+    
     if (this.config.simulateDelay > 0) {
       await new Promise(resolve => setTimeout(resolve, 500))
     }
     
+    console.log('MockProvider: Logout completed')
     return { success: true }
   }
 
   async refreshToken(refreshToken) {
+    console.log('MockProvider: Refreshing token')
+    
     if (this.config.simulateDelay > 0) {
       await new Promise(resolve => setTimeout(resolve, 800))
     }
 
     if (!refreshToken || !refreshToken.startsWith('mock_refresh_token_')) {
-      throw new Error('Invalid refresh token')
+      return {
+        success: false,
+        error: 'Invalid refresh token'
+      }
     }
 
     const newTokens = {
@@ -83,14 +106,10 @@ export class MockProvider extends AuthProvider {
       expiresIn: 3600
     }
 
+    console.log('MockProvider: Token refresh successful')
     return {
       success: true,
-      tokens: newTokens,
-      userInfo: this.config.userInfo
+      tokens: newTokens
     }
-  }
-
-  async getUserInfo(accessToken) {
-    return this.config.userInfo
   }
 }

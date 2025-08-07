@@ -1,7 +1,6 @@
 <script>
   import { layoutService } from '@/core/LayoutService.svelte.js'
   import { ideStore } from '@/stores/ideStore.svelte.js'
-  import WelcomeScreen from '../ui/WelcomeScreen.svelte'
   import LayoutContainer from './LayoutContainer.svelte'
 
   // Surveillance des changements pour la sauvegarde automatique
@@ -13,11 +12,11 @@
 </script>
 
 <div class="main-view-split">
-  {#if !ideStore.user}
-    <WelcomeScreen />
-  {:else if layoutService.tabs.length === 0}
-    <!-- Afficher la page de bienvenue si aucun tab n'est ouvert -->
-    <WelcomeScreen />
+  {#if layoutService.tabs.length === 0}
+    <!-- Afficher un simple hello si aucun tab n'est ouvert -->
+    <div class="welcome-content">
+      <h1>hello</h1>
+    </div>
   {:else}
     <!-- Rendu du layout avec support futur pour les splits -->
     <LayoutContainer layoutNode={layoutService.layout} />
@@ -32,5 +31,19 @@
     flex-direction: column;
     min-width: 0;
     overflow: hidden;
+  }
+
+  .welcome-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .welcome-content h1 {
+    font-size: 48px;
+    font-weight: 300;
+    color: white;
+    margin: 0;
   }
 </style>
