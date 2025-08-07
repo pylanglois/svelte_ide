@@ -1,0 +1,300 @@
+import { Tab } from '@/core/Tab.svelte.js'
+import { persistenceRegistry } from '@/core/PersistenceRegistry.svelte.js'
+import { eventBus } from '@/core/EventBusService.svelte.js'
+
+export class TabsManager {
+    constructor() {
+        this.tabs = []
+        this.activeTab = null
+        this.modifiedFiles = new Set()
+        this.tabIdCounter = 0
+        this.changeCallbacks = new Set()
+        
+        this.persister = persistenceRegistry.getPersister('tabs')
+        this._setupEventListeners()
+    }
+
+    addChangeCallback(callback) {
+        this.changeCallbacks.add(callback)
+    }
+
+    removeChangeCallback(callback) {
+        this.changeCallbacks.delete(callback)
+    }
+
+    _notifyChange() {
+        this.changeCallbacks.forEach(callback => callback())
+    }
+
+    _setupEventListeners() {
+        eventBus.subscribe('tab:hydrate', this._handleTabHydration.bind(this))
+    }
+
+    generateTabId() {
+        return `tab-${Date.now()}-${++this.tabIdCounter}`
+    }
+
+    addTab(tab) {
+        if (!this.tabs.find(t => t.id === tab.id)) {
+            this.tabs.push(tab)
+            this.setActiveTab(tab.id)
+            eventBus.publish('tabs:added', { tab })
+            return tab
+        }
+        return null
+    }
+
+    createTab(title, component, closable = true, icon = '📄') {
+        const tabId = this.generateTabId()
+        const tab = new Tab(tabId, title, component, closable, icon)
+        return this.addTab(tab)
+    }
+
+    closeTab(tabId) {
+        const index = this.tabs.findIndex(tab => tab.id === tabId)
+        if (index === -1) return null
+
+        const tab = this.tabs[index]
+        this.tabs.splice(index, 1)
+
+        if (this.activeTab === tabId) {
+            if (this.tabs.length > 0) {
+                const newActiveIndex = Math.min(index, this.tabs.length - 1)
+                this.setActiveTab(this.tabs[newActiveIndex].id)
+            } else {
+                this.activeTab = null
+            }
+        }
+
+        if (tab.fileName) {
+            this.modifiedFiles.delete(tab.fileName)
+        }
+
+        eventBus.publish('tabs:closed', { tabId })
+        return tabId
+    }
+
+    closeAllTabs() {
+        const closedTabIds = this.tabs.map(tab => tab.id)
+        this.tabs.splice(0)
+        this.activeTab = null
+        this.modifiedFiles.clear()
+        
+        eventBus.publish('tabs:all-closed', { closedTabIds })
+    }
+
+    setActiveTab(tabId) {
+        if (tabId === null) {
+            this.activeTab = null
+            eventBus.publish('tabs:activated', null)
+            return null
+        }
+
+        const tab = this.tabs.find(t => t.id === tabId)
+        if (tab) {
+            this.activeTab = tabId
+            eventBus.publish('tabs:activated', tab)
+            return tab
+        }
+        return null
+    }
+
+    getTabById(tabId) {
+        return this.tabs.find(tab => tab.id === tabId) || null
+    }
+
+    getTabByFileName(fileName) {
+        return this.tabs.find(tab => tab.fileName === fileName) || null
+    }
+
+    getActiveTabObject() {
+        return this.activeTab ? this.getTabById(this.activeTab) : null
+    }
+
+    reorderTabs(newTabsOrder) {
+        const reorderedTabs = []
+        newTabsOrder.forEach(tabId => {
+            const tab = this.tabs.find(t => t.id === tabId)
+            if (tab) {
+                reorderedTabs.push(tab)
+            }
+        })
+        
+        if (reorderedTabs.length === this.tabs.length) {
+            this.tabs.splice(0, this.tabs.length, ...reorderedTabs)
+            eventBus.publish('tabs:reordered', { newOrder: newTabsOrder })
+        }
+    }
+
+    setTabModified(tabId, modified) {
+        const tab = this.getTabById(tabId)
+        if (!tab) return false
+
+        if (modified) {
+            tab.isDirty = true
+        } else {
+            tab.isDirty = false
+        }
+
+        eventBus.publish('tabs:modified', { tabId, modified })
+        return true
+    }
+
+    setFileModified(fileName, modified) {
+        if (modified) {
+            this.modifiedFiles.add(fileName)
+        } else {
+            this.modifiedFiles.delete(fileName)
+        }
+
+        const tab = this.getTabByFileName(fileName)
+        if (tab) {
+            tab.isDirty = modified
+        }
+
+        eventBus.publish('file:modified', { fileName, modified })
+        return true
+    }
+
+    isTabModified(tabId) {
+        const tab = this.getTabById(tabId)
+        return tab ? tab.isDirty : false
+    }
+
+    isFileModified(fileName) {
+        return this.modifiedFiles.has(fileName)
+    }
+
+    getModifiedFiles() {
+        return Array.from(this.modifiedFiles)
+    }
+
+    hasModifiedTabs() {
+        return this.tabs.some(tab => tab.isDirty)
+    }
+
+    createSerializableLayout() {
+        if (this.tabs.length === 0) {
+            return {
+                type: 'tabgroup',
+                id: 'main',
+                tabs: [],
+                activeTab: null
+            }
+        }
+
+        const serializableTabs = this.tabs.map(tab => ({
+            id: tab.id,
+            title: tab.title,
+            closable: tab.closable,
+            icon: tab.icon,
+            descriptor: tab.descriptor
+        }))
+
+        return {
+            type: 'tabgroup',
+            id: 'main',
+            tabs: serializableTabs,
+            activeTab: this.activeTab
+        }
+    }
+
+    _handleTabHydration({ descriptor, tabId, hydrateCallback, userId }) {
+        if (descriptor.type === 'file-editor') {
+            this._hydrateFileTab(descriptor, tabId, hydrateCallback, userId)
+        } else {
+            this._hydrateToolTab(descriptor, tabId, hydrateCallback)
+        }
+    }
+
+    _hydrateFileTab(descriptor, tabId, hydrateCallback, userId) {
+        eventBus.publish('file:restore-request', {
+            fileName: descriptor.resourceId,
+            toolId: descriptor.toolId,
+            userId,
+            callback: (fileData) => {
+                if (fileData) {
+                    hydrateCallback(fileData.component, {
+                        content: fileData.content
+                    })
+                }
+            }
+        })
+    }
+
+    _hydrateToolTab(descriptor, tabId, hydrateCallback) {
+        eventBus.publish('tool:restore-tab', {
+            descriptor,
+            tabId,
+            hydrateCallback
+        })
+    }
+
+    saveTabsState(userKey) {
+        if (!userKey) return
+
+        try {
+            const layout = this.createSerializableLayout()
+            const layoutData = {
+                layout,
+                timestamp: Date.now(),
+                version: '1.0'
+            }
+            
+            this.persister.save(`user-${userKey}`, layoutData)
+        } catch (error) {
+            console.error('Error saving tabs state:', error)
+        }
+    }
+
+    async restoreTabsState(userKey) {
+        if (!userKey) return
+
+        try {
+            const layoutData = this.persister.load(`user-${userKey}`)
+            if (!layoutData || !layoutData.layout) return
+
+            this.closeAllTabs()
+
+            const { layout } = layoutData
+            const restoredTabs = new Map()
+
+            for (const tabData of layout.tabs) {
+                if (tabData.descriptor) {
+                    const tab = new Tab(tabData.id, tabData.title, null, tabData.closable, tabData.icon)
+                    tab.setDescriptor(tabData.descriptor)
+                    
+                    const hydrateCallback = (component, data = {}) => {
+                        tab.component = component
+                        if (tabData.descriptor.type === 'file-editor') {
+                            tab.fileName = tabData.descriptor.resourceId
+                            tab.content = data.content || ''
+                            tab.originalContent = data.content || ''
+                            tab.toolId = tabData.descriptor.toolId
+                        }
+                    }
+                    
+                    restoredTabs.set(tabData.id, tab)
+                    this.tabs.push(tab)
+                    
+                    eventBus.publish('tab:hydrate', {
+                        descriptor: tabData.descriptor,
+                        tabId: tabData.id,
+                        hydrateCallback
+                    })
+                }
+            }
+
+            if (layout.activeTab && restoredTabs.has(layout.activeTab)) {
+                this.setActiveTab(layout.activeTab)
+            } else if (this.tabs.length > 0) {
+                this.setActiveTab(this.tabs[0].id)
+            }
+
+        } catch (error) {
+            console.error('Error restoring tabs state:', error)
+        }
+    }
+}
+
+export const tabsManager = new TabsManager()

@@ -14,6 +14,8 @@
   import ResizeHandle from '@/components/layout/containers/ResizeHandle.svelte'
   import AuthPanel from '@/components/layout/ui/AuthPanel.svelte'
   import WelcomeScreen from '@/components/layout/ui/WelcomeScreen.svelte'
+  import LayoutDebugPanel from '@/components/debug/LayoutDebugPanel.svelte'
+  import NewPanelsRenderer from '@/components/layout/NewPanelsRenderer.svelte'
 
   const authStore = getAuthStore()
 
@@ -139,6 +141,9 @@
     <WelcomeScreen />
   {/if}
 </div>
+
+<LayoutDebugPanel />
+<NewPanelsRenderer />
 
 <style>
   :global(*) {

@@ -278,8 +278,7 @@ src/stores/IDEFacade.svelte.js (100 lignes)
 ├── constructor() // init all services
 ├── addTab(tab) // delegates to TabsManager
 ├── toggleTool(toolId) // coordinates core + panels
-├── addDropZone(config) // delegates to DropZoneRegistry
-└── preferences // delegates to PreferencesService
+└── addDropZone(config) // delegates to DropZoneRegistry
 ```
 
 ## 🔄 Stratégie de Migration
@@ -324,7 +323,6 @@ src/core/
 │   ├── UnifiedDragDropService.svelte.js (120 lignes)
 │   ├── DropZoneRegistry.svelte.js     (100 lignes)
 │   └── index.js                       (exports)
-└── PreferencesService.svelte.js       (existant)
 
 src/stores/
 ├── CoreStore.svelte.js                (200 lignes)

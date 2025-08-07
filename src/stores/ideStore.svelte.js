@@ -2,6 +2,9 @@ import { Tab } from '@/core/Tab.svelte.js'
 import { eventBus } from '@/core/EventBusService.svelte.js'
 import { layoutService } from '@/core/LayoutService.svelte.js'
 import { getAuthStore } from './authStore.svelte.js'
+import { preferencesService } from '@/core/PreferencesService.svelte.js'
+import { createLegacyAdapter } from '@/core/LegacyAdapter.svelte.js'
+import ExplorerPanel from '@/components/panels/ExplorerPanel.svelte'
 
 class IDEStore {
   constructor() {
@@ -37,6 +40,8 @@ class IDEStore {
     this.bottomTools = $state([])
     
     this._updateToolLists()
+    
+    this.legacyAdapter = createLegacyAdapter(this)
   }
 
   get tabs() {
@@ -45,6 +50,10 @@ class IDEStore {
 
   get activeTab() {
     return layoutService.activeTab
+  }
+
+  get preferences() {
+    return preferencesService
   }
 
   get user() {
@@ -452,6 +461,171 @@ class IDEStore {
       activeTab: null
     }
     this.saveUserLayout()
+  }
+
+  enableNewLayoutSystem() {
+    this.legacyAdapter.enableNewSystem()
+  }
+
+  disableNewLayoutSystem() {
+    this.legacyAdapter.disableNewSystem()
+  }
+
+  getLayoutSystemStatus() {
+    return this.legacyAdapter.getSystemStatus()
+  }
+
+  testNewLayoutSystem() {
+    // Test simple : enregistrer une zone test et l'activer
+    try {
+      const testZone = this.legacyAdapter.genericLayoutService.registerZone('test-zone-123', {
+        type: 'test',
+        component: null,
+        position: 'test-area',
+        resizable: true,
+        persistable: false
+      })
+      console.log('Zone test enregistrée:', testZone)
+      
+      const activated = this.legacyAdapter.genericLayoutService.activateZone(testZone.id, 'Test Content')
+      console.log('Zone test activée:', activated)
+      
+      return { success: true, zoneId: testZone.id }
+    } catch (error) {
+      console.error('Erreur test layout:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  isNewLayoutSystemEnabled() {
+    return this.legacyAdapter.isNewSystemEnabled
+  }
+
+  migrateExplorerToNewSystem() {
+    try {
+      // Enregistrer la zone pour l'explorer
+      const explorerZone = this.legacyAdapter.genericLayoutService.registerZone('explorer-new', {
+        type: 'panel',
+        component: ExplorerPanel,
+        position: 'topLeft',
+        resizable: true,
+        persistable: true
+      })
+      
+      // Enregistrer le panneau
+      this.legacyAdapter.panelsManager.registerPanel({
+        id: 'explorer-new',
+        position: 'topLeft',
+        persistent: true,
+        title: 'Explorateur (Nouveau)',
+        icon: '📁',
+        component: ExplorerPanel
+      })
+      
+      // Activer le panneau
+      const activated = this.legacyAdapter.panelsManager.activatePanel('explorer-new', ExplorerPanel)
+      console.log('Explorer migré vers nouveau système:', activated)
+      
+      return { success: true, panelId: 'explorer-new' }
+    } catch (error) {
+      console.error('Erreur migration explorer:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  async migrateCalculatorToNewSystem() {
+    try {
+      const { default: CalculatorPanel } = await import('@tools/calculator/CalculatorPanel.svelte')
+      
+      // Enregistrer la zone pour la calculatrice
+      const calculatorZone = this.legacyAdapter.genericLayoutService.registerZone('calculator-new', {
+        type: 'panel',
+        component: CalculatorPanel,
+        position: 'topLeft',
+        resizable: true,
+        persistable: true
+      })
+      
+      // Enregistrer le panneau
+      this.legacyAdapter.panelsManager.registerPanel({
+        id: 'calculator-new',
+        position: 'topLeft',
+        persistent: true,
+        title: 'Calculatrice (Nouveau)',
+        icon: '🧮',
+        component: CalculatorPanel
+      })
+      
+      // Activer le panneau
+      const activated = this.legacyAdapter.panelsManager.activatePanel('calculator-new', CalculatorPanel)
+      console.log('Calculator migré vers nouveau système:', activated)
+      
+      return { success: true, panelId: 'calculator-new' }
+    } catch (error) {
+      console.error('Erreur migration calculator:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  async migrateExplorer2ToNewSystem() {
+    try {
+      const { default: Explorer2Panel } = await import('@tools/explorer2/Explorer2Panel.svelte')
+      
+      // Enregistrer la zone pour explorer2
+      const explorer2Zone = this.legacyAdapter.genericLayoutService.registerZone('explorer2-new', {
+        type: 'panel',
+        component: Explorer2Panel,
+        position: 'topRight',
+        resizable: true,
+        persistable: true
+      })
+      
+      // Enregistrer le panneau
+      this.legacyAdapter.panelsManager.registerPanel({
+        id: 'explorer2-new',
+        position: 'topRight',
+        persistent: true,
+        title: 'Explorateur V2 (Nouveau)',
+        icon: '🗂️',
+        component: Explorer2Panel
+      })
+      
+      // Activer le panneau
+      const activated = this.legacyAdapter.panelsManager.activatePanel('explorer2-new', Explorer2Panel)
+      console.log('Explorer2 migré vers nouveau système:', activated)
+      
+      return { success: true, panelId: 'explorer2-new' }
+    } catch (error) {
+      console.error('Erreur migration explorer2:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  closeAllNewPanels() {
+    try {
+      const result = this.legacyAdapter.panelsManager.deactivateAllPanels()
+      console.log('Tous les panneaux fermés:', result)
+      return { success: true, closedPanels: result }
+    } catch (error) {
+      console.error('Erreur fermeture panneaux:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  getNewSystemPanels() {
+    try {
+      const activePanels = this.legacyAdapter.panelsManager.getActivePanels()
+      const registeredPanels = this.legacyAdapter.panelsManager.getRegisteredPanels()
+      
+      return {
+        active: activePanels,
+        registered: registeredPanels,
+        focused: this.legacyAdapter.panelsManager.getFocusedPanel()
+      }
+    } catch (error) {
+      console.error('Erreur récupération panneaux:', error)
+      return { error: error.message }
+    }
   }
 }
 
