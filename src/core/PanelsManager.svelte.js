@@ -233,7 +233,9 @@ export class PanelsManager {
         return {
             activePanels: activePanels.map(panel => ({
                 id: panel.id,
-                position: panel.position
+                position: panel.position,
+                title: panel.title,
+                toolId: panel.toolId
             })),
             focusedPanel: this.focusedPanel
         }
@@ -242,6 +244,7 @@ export class PanelsManager {
     restoreState(state) {
         if (!state) return
 
+        // Désactiver tous les panneaux d'abord
         this.getAllPanels().forEach(panel => {
             if (panel.isActive) {
                 this.deactivatePanel(panel.id)
@@ -249,8 +252,37 @@ export class PanelsManager {
         })
 
         if (state.activePanels) {
-            state.activePanels.forEach(({ id }) => {
-                this.activatePanel(id)
+            state.activePanels.forEach(savedPanel => {
+                // Chercher le panneau correspondant par toolId ou title
+                let matchingPanel = null
+                
+                // D'abord, essayer par ID exact (pour compatibilité)
+                matchingPanel = this.panels.get(savedPanel.id)
+                
+                // Si pas trouvé, chercher par toolId
+                if (!matchingPanel && savedPanel.toolId) {
+                    for (const [panelId, panel] of this.panels) {
+                        if (panel.toolId === savedPanel.toolId && panel.position === savedPanel.position) {
+                            matchingPanel = panel
+                            break
+                        }
+                    }
+                }
+                
+                // Si toujours pas trouvé, chercher par title et position
+                if (!matchingPanel && savedPanel.title) {
+                    for (const [panelId, panel] of this.panels) {
+                        if (panel.title === savedPanel.title && panel.position === savedPanel.position) {
+                            matchingPanel = panel
+                            break
+                        }
+                    }
+                }
+                
+                // Activer le panneau trouvé
+                if (matchingPanel) {
+                    this.activatePanel(matchingPanel.id)
+                }
             })
         }
 

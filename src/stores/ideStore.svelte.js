@@ -41,6 +41,11 @@ class IdeStore {
     this._updateToolLists()
     
     this.panelsManager = panelsManager
+    
+    // Sauvegarder automatiquement quand les panneaux changent
+    this.panelsManager.addChangeCallback(() => {
+      this.saveUserLayout()
+    })
   }
 
   get tabs() {
@@ -395,6 +400,11 @@ class IdeStore {
         layoutService.layout = restoredLayout
       }
       
+      // Restaurer l'état des panneaux
+      if (layoutData.panels) {
+        this.panelsManager.restoreState(layoutData.panels)
+      }
+      
     } catch (error) {
       console.error('Error restoring user layout:', error)
     }
@@ -427,6 +437,7 @@ class IdeStore {
       if (serializableLayout) {
         const layoutData = {
           layout: serializableLayout,
+          panels: this.panelsManager.saveCurrentState(),
           timestamp: Date.now(),
           version: '1.0'
         }
