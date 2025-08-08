@@ -13,7 +13,7 @@
   import ResizeHandle from '@/components/layout/containers/ResizeHandle.svelte'
   import AuthPanel from '@/components/layout/ui/AuthPanel.svelte'
   import WelcomeScreen from '@/components/layout/ui/WelcomeScreen.svelte'
-  import NewToolPanel from '@/components/layout/chrome/NewToolPanel.svelte'
+  import ToolPanel from '@/components/layout/chrome/ToolPanel.svelte'
 
   const authStore = getAuthStore()
 
@@ -102,7 +102,7 @@
   
   // Surveillance réactive des changements de panneaux
   $effect(() => {
-    const panelsManager = ideStore.legacyAdapter?.panelsManager
+    const panelsManager = ideStore.panelsManager
     if (panelsManager) {
       // Ajouter un callback pour mettre à jour les états
       const updateZoneStates = () => {
@@ -111,7 +111,6 @@
         hasTopRight = panelsManager.hasActivePanelsInPosition('topRight')
         hasBottomRight = panelsManager.hasActivePanelsInPosition('bottomRight')
         hasBottom = panelsManager.hasActivePanelsInPosition('bottom')
-        console.log('🔄 App: Zones mises à jour:', { hasTopLeft, hasBottomLeft, hasTopRight, hasBottomRight, hasBottom })
       }
       
       panelsManager.addChangeCallback(updateZoneStates)
@@ -132,8 +131,8 @@
         <div class="panels-wrapper">
           <!-- Zones conditionnelles basées sur les états réactifs -->
           <div class="side-panel-container left" style:width="{leftPanelWidth}px" style:display="{hasTopLeft || hasBottomLeft ? 'flex' : 'none'}">
-            <NewToolPanel position="topLeft" />
-            <NewToolPanel position="bottomLeft" />
+            <ToolPanel position="topLeft" />
+            <ToolPanel position="bottomLeft" />
           </div>
           
           {#if hasTopLeft || hasBottomLeft}
@@ -147,15 +146,15 @@
           {/if}
           
           <div class="side-panel-container right" style:width="{rightPanelWidth}px" style:display="{hasTopRight || hasBottomRight ? 'flex' : 'none'}">
-            <NewToolPanel position="topRight" />
-            <NewToolPanel position="bottomRight" />
+            <ToolPanel position="topRight" />
+            <ToolPanel position="bottomRight" />
           </div>
         </div>
         
         {#if hasBottom}
           <ResizeHandle direction="horizontal" onResizeStart={createResizeLogic('bottom')} />
           <div class="bottom-panel-container" style:height="{bottomPanelHeight}px">
-            <NewToolPanel position="bottom" />
+            <ToolPanel position="bottom" />
           </div>
         {/if}
       </div>

@@ -3,7 +3,7 @@ import { eventBus } from '@/core/EventBusService.svelte.js'
 import { layoutService } from '@/core/LayoutService.svelte.js'
 import { getAuthStore } from './authStore.svelte.js'
 import { preferencesService } from '@/core/PreferencesService.svelte.js'
-import { createLegacyAdapter } from '@/core/LegacyAdapter.svelte.js'
+import { panelsManager } from '@/core/PanelsManager.svelte.js'
 
 class IdeStore {
   constructor() {
@@ -40,7 +40,7 @@ class IdeStore {
     
     this._updateToolLists()
     
-    this.legacyAdapter = createLegacyAdapter(this)
+    this.panelsManager = panelsManager
   }
 
   get tabs() {

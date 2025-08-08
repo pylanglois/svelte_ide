@@ -16,12 +16,11 @@ class ToolManagerSvelte {
     // NOUVEAU : Enregistrement direct dans le nouveau système
     this._registerToolInNewSystem(tool)
     
-    // Legacy : maintenir pour compatibilité temporaire  
     ideStore.addTool(tool)
   }
   
   _registerToolInNewSystem(tool) {
-    const panelsManager = ideStore.legacyAdapter?.panelsManager
+    const panelsManager = ideStore.panelsManager
     if (!panelsManager || !tool.component) return
     
     // Mapper les outils système spéciaux
@@ -48,8 +47,6 @@ class ToolManagerSvelte {
         toolId: tool.id
       })
     }
-    
-    console.log(`🔧 Outil ${tool.name} enregistré dans PanelsManager:`, `tool-${tool.id}`)
   }
 
   unregisterTool(toolId) {

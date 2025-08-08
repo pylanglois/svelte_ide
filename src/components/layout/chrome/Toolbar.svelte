@@ -24,10 +24,9 @@
   }
 
   async function activateToolInNewSystem(tool) {
-    console.log(`🆕 Activation outil:`, tool.name)
     
     try {
-      const panelsManager = ideStore.legacyAdapter?.panelsManager
+      const panelsManager = ideStore.panelsManager
       if (!panelsManager) {
         console.error('PanelsManager non disponible')
         return
@@ -41,12 +40,9 @@
         panelId = `console-${tool.id}`
       }
       
-      console.log(`🔄 Activation panneau:`, panelId)
       const success = panelsManager.activatePanel(panelId, tool.component)
       
-      if (success) {
-        console.log(`✅ ${tool.name} activé`)
-      } else {
+      if (!success) {
         console.warn(`⚠️ Échec activation ${tool.name}`)
       }
       
