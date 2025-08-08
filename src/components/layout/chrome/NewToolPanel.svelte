@@ -36,6 +36,18 @@
         case 'Explorer2Panel':
           const { default: Explorer2Panel } = await import('@tools/explorer2/Explorer2Panel.svelte')
           return Explorer2Panel
+        case 'ConsolePanel':
+          const { default: ConsolePanel } = await import('@/components/panels/ConsolePanel.svelte')
+          return ConsolePanel
+        case 'NotificationsPanel':
+          const { default: NotificationsPanel } = await import('@/components/panels/NotificationsPanel.svelte')
+          return NotificationsPanel
+        case 'MetadataPanel':
+          const { default: MetadataPanel } = await import('@tools/explorer/MetadataPanel.svelte')
+          return MetadataPanel
+        case 'MetadataV2Panel':
+          const { default: MetadataV2Panel } = await import('@tools/explorer2/MetadataPanel.svelte')
+          return MetadataV2Panel
         case 'ExplorerPanel':
         default:
           return ExplorerPanel
@@ -66,17 +78,23 @@
           const title = panel.title?.toLowerCase() || ''
           if (title.includes('calculatrice')) {
             componentName = 'CalculatorPanel'
-          } else if (title.includes('v2')) {
+          } else if (title.includes('métadonnées v2')) {
+            // IMPORTANT: Vérifier "métadonnées v2" AVANT "métadonnées" !
+            componentName = 'MetadataV2Panel'
+          } else if (title.includes('métadonnées')) {
+            componentName = 'MetadataPanel'
+          } else if (title.includes('explorateur') && title.includes('v2')) {
             componentName = 'Explorer2Panel'
           } else if (title.includes('explorateur')) {
             componentName = 'ExplorerPanel'
+          } else if (title.includes('console')) {
+            componentName = 'ConsolePanel'
+          } else if (title.includes('notifications')) {
+            componentName = 'NotificationsPanel'
           }
         } else if (panel.id.startsWith('console-')) {
-          // Console système - utiliser le composant déjà défini
-          if (panel.component) {
-            loadedComponents.set(panel.id, panel.component)
-            continue
-          }
+          // Console système - charger ConsolePanel
+          componentName = 'ConsolePanel'
         }
         
         const component = await loadComponent(componentName)

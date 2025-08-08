@@ -25,7 +25,7 @@ export class ExplorerTool extends Tool {
   }
 }
 
-class LegacyExplorerTool extends Tool {
+class ExplorerMainTool extends Tool {
   constructor() {
     super('Explorateur', '📁', 'topLeft')
   }
@@ -41,7 +41,7 @@ class LegacyExplorerTool extends Tool {
 
 export default {
   register(toolManager) {
-    const explorerTool = new LegacyExplorerTool()
+    const explorerTool = new ExplorerMainTool()
     const metadataTool = new MetadataTool()
     
     toolManager.registerTool(explorerTool)

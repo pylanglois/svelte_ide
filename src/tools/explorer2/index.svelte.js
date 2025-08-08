@@ -25,7 +25,7 @@ export class Explorer2Tool extends Tool {
   }
 }
 
-class LegacyExplorerV2Tool extends Tool {
+class Explorer2MainTool extends Tool {
   constructor() {
     super('Explorateur V2', '🔍', 'topLeft')
   }
@@ -39,7 +39,7 @@ class LegacyExplorerV2Tool extends Tool {
   }
 }
 
-const explorerTool = new LegacyExplorerV2Tool()
+const explorerTool = new Explorer2MainTool()
 const metadataV2Tool = new MetadataV2Tool()
 
 explorerTool.files = [
