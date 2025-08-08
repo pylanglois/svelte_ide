@@ -1,5 +1,6 @@
 import { genericLayoutService } from '@/core/GenericLayoutService.svelte.js'
 import { zoneRegistry } from '@/core/layout/ZoneRegistry.svelte.js'
+import { stateProviderService } from '@/core/StateProviderService.svelte.js'
 
 export class PanelsManager {
     constructor() {
@@ -9,6 +10,9 @@ export class PanelsManager {
         this.changeCallbacks = new Set()
         
         this._initializePanelPositions()
+        
+        // S'enregistrer comme fournisseur d'état
+        stateProviderService.registerProvider('panels', this)
     }
 
     addChangeCallback(callback) {
@@ -229,6 +233,10 @@ export class PanelsManager {
     }
 
     saveCurrentState() {
+        return this.saveState()
+    }
+
+    saveState() {
         const activePanels = this.getActivePanels()
         return {
             activePanels: activePanels.map(panel => ({

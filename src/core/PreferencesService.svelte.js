@@ -1,3 +1,5 @@
+import { stateProviderService } from '@/core/StateProviderService.svelte.js'
+
 export class PreferencesService {
     constructor() {
         this.systemPreferences = $state({
@@ -22,6 +24,9 @@ export class PreferencesService {
 
         this.toolPreferences = $state({})
         this.userPreferences = $state({})
+        
+        // S'enregistrer comme fournisseur d'état
+        stateProviderService.registerProvider('preferences', this)
     }
 
     getEffectivePreference(key, defaultValue = null) {
@@ -68,6 +73,25 @@ export class PreferencesService {
             system: this.systemPreferences,
             tools: this.toolPreferences,
             user: this.userPreferences
+        }
+    }
+
+    saveState() {
+        return {
+            toolPreferences: this.toolPreferences,
+            userPreferences: this.userPreferences
+        }
+    }
+
+    restoreState(state) {
+        if (!state) return
+
+        if (state.toolPreferences) {
+            this.toolPreferences = { ...state.toolPreferences }
+        }
+
+        if (state.userPreferences) {
+            this.userPreferences = { ...state.userPreferences }
         }
     }
 }

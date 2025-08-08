@@ -4,6 +4,7 @@ import { layoutService } from '@/core/LayoutService.svelte.js'
 import { getAuthStore } from './authStore.svelte.js'
 import { preferencesService } from '@/core/PreferencesService.svelte.js'
 import { panelsManager } from '@/core/PanelsManager.svelte.js'
+import { stateProviderService } from '@/core/StateProviderService.svelte.js'
 
 class IdeStore {
   constructor() {
@@ -42,7 +43,8 @@ class IdeStore {
     
     this.panelsManager = panelsManager
     
-    // Sauvegarder automatiquement quand les panneaux changent
+    // Sauvegarder automatiquement quand l'état change
+    stateProviderService.registerProvider('layout', this)
     this.panelsManager.addChangeCallback(() => {
       this.saveUserLayout()
     })
@@ -400,9 +402,9 @@ class IdeStore {
         layoutService.layout = restoredLayout
       }
       
-      // Restaurer l'état des panneaux
-      if (layoutData.panels) {
-        this.panelsManager.restoreState(layoutData.panels)
+      // Restaurer tous les états via le service de fournisseurs
+      if (layoutData.states) {
+        stateProviderService.restoreAllStates(layoutData.states)
       }
       
     } catch (error) {
@@ -437,7 +439,7 @@ class IdeStore {
       if (serializableLayout) {
         const layoutData = {
           layout: serializableLayout,
-          panels: this.panelsManager.saveCurrentState(),
+          states: stateProviderService.saveAllStates(),
           timestamp: Date.now(),
           version: '1.0'
         }
@@ -471,6 +473,25 @@ class IdeStore {
       activeTab: null
     }
     this.saveUserLayout()
+  }
+
+  saveState() {
+    return {
+      focusedPanel: this.focusedPanel,
+      activeToolsByPosition: { ...this.activeToolsByPosition }
+    }
+  }
+
+  restoreState(state) {
+    if (!state) return
+
+    if (state.focusedPanel !== undefined) {
+      this.focusedPanel = state.focusedPanel
+    }
+
+    if (state.activeToolsByPosition) {
+      Object.assign(this.activeToolsByPosition, state.activeToolsByPosition)
+    }
   }
 }
 
