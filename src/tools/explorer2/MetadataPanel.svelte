@@ -1,6 +1,7 @@
 <script>
   import { ideStore } from '@/stores/ideStore.svelte.js'
   import { eventBus } from '@/core/EventBusService.svelte.js'
+  import { layoutService } from '@/core/LayoutService.svelte.js'
   import FileViewer from '@tools/explorer2/FileViewer.svelte'
 
   let metadata = $state(null)
@@ -23,16 +24,18 @@
   }
 
   $effect(() => {
-    // 1. Traiter l'état initial
-    const currentActiveTab = ideStore.tabs.find(t => t.id === ideStore.activeTab)
+    // Réagir aux changements du focus global
+    const currentActiveTab = layoutService.activeTab
     processTab(currentActiveTab)
+  })
 
-    // 2. S'abonner aux futurs changements
+  $effect(() => {
+    // S'abonner aux événements de changement de tab
     const unsubscribe = eventBus.subscribe('tabs:activated', (activatedTab) => {
       processTab(activatedTab)
     })
 
-    // 3. Nettoyer
+    // Nettoyer l'abonnement à la destruction
     return () => unsubscribe()
   })
 

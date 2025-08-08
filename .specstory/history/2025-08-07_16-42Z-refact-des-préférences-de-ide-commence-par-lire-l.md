@@ -5519,6 +5519,66 @@ _**Assistant**_
 ```
 
 ```
+Maintenant, je dois également ajouter le focus global à la persistance du LayoutService en tant que fournisseur d'état. Je vais modifier l'ideStore pour inclure le LayoutService comme fournisseur d'état : 
+```
+
+```
+Maintenant je dois ajouter les méthodes `saveState` et `restoreState` au LayoutService : 
+```
+
+```
+Maintenant, vérifions que le code compile et testons : Il y a juste un avertissement CSS non critique. Maintenant regardons le serveur de développement : Excellent ! Le système fonctionne. Maintenant je vais vérifier que le metadata panel fonctionne. Le problème de metadata vide peut venir du fait que le focus global pourrait affecter comment le metadata panel obtient le fichier actif. Regardons le metadata panel : Je vois le problème ! Le MetadataPanel utilise `ideStore.activeTab` à la ligne 27, mais avec notre nouveau système de focus global, `ideStore.activeTab` renvoie maintenant le tab avec le focus global, pas nécessairement celui du groupe actuel. 
+
+Le problème est que le `ideStore.activeTab` retourne `layoutService.activeTab` qui utilise `globalFocusedTab`. Mais le metadata panel doit recevoir les événements de changement de focus correctement.
+
+Regardons comment l'événement `tabs:activated` est émis : Je vois que l'événement est publié dans `ideStore.setActiveTab`. Cela devrait fonctionner. Le problème pourrait être que le MetadataPanel ne reçoit pas les mises à jour correctement. 
+
+En fait, regardons attentivement : le MetadataPanel ne fonctionne que pour les fichiers qui utilisent le composant `FileViewer`, mais peut-être que les fichiers actuellement ouverts n'utilisent pas ce composant.
+
+Testons d'abord le système de focus. Ouvrons l'IDE pour voir si le problème de focus multiple est résolu : 
+
+---
+
+_**User**_
+
+quand un onglet obtient le focus, on dirait que le panel metadata ne recoit pas d'event ou de réactif pour se mettre à jour car il reste vide..
+
+---
+
+_**Assistant**_
+
+Je vois le problème ! Le panel metadata ne se met pas à jour quand un onglet obtient le focus car il n'est pas correctement connecté au système de focus global. Je vais d'abord regarder le MetadataPanel pour comprendre comment il fonctionne : Je vois le problème ! Le MetadataPanel utilise `ideStore.activeTab` à la ligne 27, mais cette propriété retourne maintenant le tab ID, pas l'objet tab complet. Il faut corriger cette ligne. De plus, le panel ne se met pas à jour correctement car il ne réagit pas aux changements du focus global.
+
+Je vais d'abord corriger le code du MetadataPanel : 
+```
+
+```
+Maintenant je dois vérifier que l'événement `tabs:activated` est bien publié avec l'objet tab complet. Regardons dans ideStore : Bon, l'événement est publié avec l'objet tab. Mais le problème pourrait venir du fait que le MetadataPanel ne se met pas à jour quand le focus global change sans passer par `setActiveTab`. Je vais ajouter une réactivité directe au focus global.
+
+D'abord, je vais modifier le MetadataPanel pour qu'il soit réactif au focus global du layoutService : 
+```
+
+```
+
+
+---
+
+_**User**_
+
+@agent Try Again
+
+---
+
+_**Assistant**_
+
+
+```
+
+```
+Maintenant je vais faire la même correction dans le MetadataPanel d'explorer2 : 
+```
+
+```
 
 
 ---
