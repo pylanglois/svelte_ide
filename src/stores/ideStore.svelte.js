@@ -627,6 +627,93 @@ class IDEStore {
       return { error: error.message }
     }
   }
+
+  async migrateAllToolsToNewSystem() {
+    console.log('🔄 Migration automatique de tous les outils vers le nouveau système...')
+    
+    try {
+      // D'abord, fermer tous les panneaux existants
+      this.legacyAdapter.panelsManager.deactivateAllPanels()
+      
+      // Migration organisée par position
+      // topLeft: Explorer principal
+      await this.migrateExplorerToNewSystem()
+      
+      // topRight: Explorer V2  
+      await this.migrateExplorer2ToNewSystem()
+      
+      // bottomLeft: Calculator
+      const { default: CalculatorPanel } = await import('@tools/calculator/CalculatorPanel.svelte')
+      
+      // Modifier la position du calculator pour bottomLeft
+      const calculatorZone = this.legacyAdapter.genericLayoutService.registerZone('calculator-new', {
+        type: 'panel',
+        component: CalculatorPanel,
+        position: 'bottomLeft',
+        resizable: true,
+        persistable: true
+      })
+      
+      this.legacyAdapter.panelsManager.registerPanel({
+        id: 'calculator-new',
+        position: 'bottomLeft',
+        persistent: true,
+        title: 'Calculatrice',
+        icon: '🧮',
+        component: CalculatorPanel
+      })
+      
+      this.legacyAdapter.panelsManager.activatePanel('calculator-new', CalculatorPanel)
+      console.log('Calculator migré vers bottomLeft')
+      
+      console.log('✅ Migration complète terminée!')
+      return { success: true, migratedTools: ['explorer', 'calculator', 'explorer2'] }
+    } catch (error) {
+      console.error('❌ Erreur migration complète:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  // Pont pour activer les outils depuis l'ancien système
+  async activateToolInNewSystem(toolId, position) {
+    console.log(`🔗 Activation d'outil via pont: ${toolId} en position ${position}`)
+    
+    try {
+      // Mapper les anciens outils vers le nouveau système
+      if (toolId.includes('Explorateur') && position === 'topLeft') {
+        return await this.migrateExplorerToNewSystem()
+      } else if (toolId.includes('Calculatrice') && position === 'topLeft') {
+        // Migrer calculatrice vers topLeft si demandé depuis l'ancien système
+        const { default: CalculatorPanel } = await import('@tools/calculator/CalculatorPanel.svelte')
+        
+        const calculatorZone = this.legacyAdapter.genericLayoutService.registerZone('calculator-new', {
+          type: 'panel',
+          component: CalculatorPanel,
+          position: position,
+          resizable: true,
+          persistable: true
+        })
+        
+        this.legacyAdapter.panelsManager.registerPanel({
+          id: 'calculator-new',
+          position: position,
+          persistent: true,
+          title: 'Calculatrice',
+          icon: '🧮',
+          component: CalculatorPanel
+        })
+        
+        return this.legacyAdapter.panelsManager.activatePanel('calculator-new', CalculatorPanel)
+      } else if (toolId.includes('V2') && position === 'topRight') {
+        return await this.migrateExplorer2ToNewSystem()
+      }
+      
+      return false
+    } catch (error) {
+      console.error('Erreur activation outil via pont:', error)
+      return false
+    }
+  }
 }
 
 export const ideStore = new IDEStore()

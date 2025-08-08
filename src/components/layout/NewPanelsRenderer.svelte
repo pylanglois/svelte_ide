@@ -50,15 +50,27 @@
 </script>
 
 {#if activePanels.length > 0}
-  <div class="new-panels-container">
+  <div class="new-panels-integrated">
     {#each activePanels as { position, panel } (panel.id)}
       <div 
-        class="panel-zone {position}" 
+        class="panel-container {position}" 
         data-panel-id={panel.id}
         data-position={position}
       >
         {#if panel.id === 'explorer-new'}
           <ExplorerPanel panelId={panel.id} toolId={panel.toolId} />
+        {:else if panel.id === 'calculator-new'}
+          {#await loadComponent('CalculatorPanel') then CalculatorComponent}
+            {#if CalculatorComponent}
+              <svelte:component this={CalculatorComponent} panelId={panel.id} />
+            {/if}
+          {/await}
+        {:else if panel.id === 'explorer2-new'}
+          {#await loadComponent('Explorer2Panel') then Explorer2Component}
+            {#if Explorer2Component}
+              <svelte:component this={Explorer2Component} panelId={panel.id} />
+            {/if}
+          {/await}
         {:else}
           <div class="panel-placeholder">
             <div class="panel-header">

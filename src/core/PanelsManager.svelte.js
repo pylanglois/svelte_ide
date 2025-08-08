@@ -20,7 +20,16 @@ export class PanelsManager {
     }
 
     _notifyChange() {
-        this.changeCallbacks.forEach(callback => callback())
+        console.log(`🔔 PanelsManager._notifyChange() appelée, callbacks:`, this.changeCallbacks.size)
+        this.changeCallbacks.forEach(callback => {
+            console.log(`📞 Appel callback...`)
+            try {
+                callback()
+                console.log(`✅ Callback exécuté avec succès`)
+            } catch (error) {
+                console.error(`❌ Erreur callback:`, error)
+            }
+        })
     }
 
     _initializePanelPositions() {
@@ -60,22 +69,34 @@ export class PanelsManager {
     }
 
     activatePanel(panelId, component = null) {
+        console.log(`🔧 PanelsManager.activatePanel(${panelId})`)
         const panel = this.panels.get(panelId)
-        if (!panel) return false
+        if (!panel) {
+            console.warn(`❌ Panel ${panelId} non trouvé dans panels:`, Array.from(this.panels.keys()))
+            return false
+        }
 
+        console.log(`🔧 Panel trouvé:`, panel)
         const currentActive = this.activePanelsByPosition.get(panel.position)
         if (currentActive) {
+            console.log(`🔧 Désactivation panel actuel:`, currentActive.id)
             this.deactivatePanel(currentActive.id)
         }
 
         const content = component || panel.component
+        console.log(`🔧 Activation zone ${panel.zoneId} avec composant:`, !!content)
         const success = genericLayoutService.activateZone(panel.zoneId, content)
         
         if (success) {
             panel.isActive = true
             this.activePanelsByPosition.set(panel.position, panel)
             this.focusedPanel = panelId
+            console.log(`🔧 Panel activé, état mis à jour:`, panel.position, panel.id)
+            console.log(`🔧 activePanelsByPosition après activation:`, this.activePanelsByPosition)
             this._notifyChange()
+            console.log(`🔔 Notification envoyée`)
+        } else {
+            console.warn(`❌ Échec activation zone ${panel.zoneId}`)
         }
 
         return success
@@ -278,6 +299,11 @@ export class PanelsManager {
 
     getFocusedPanel() {
         return this.focusedPanel
+    }
+
+    hasActivePanelsInPosition(position) {
+        return this.activePanelsByPosition.has(position) && 
+               this.activePanelsByPosition.get(position) !== null
     }
 }
 

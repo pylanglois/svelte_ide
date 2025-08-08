@@ -19,7 +19,40 @@
   const bottomTarget = isLeft ? 'bottomLeft' : 'bottomRight'
 
   function handleToolClick(tool) {
-    ideStore.toggleTool(tool.id)
+    // Utiliser directement le PanelsManager avec l'ID pré-enregistré
+    activateToolInNewSystem(tool)
+  }
+
+  async function activateToolInNewSystem(tool) {
+    console.log(`🆕 Activation outil:`, tool.name)
+    
+    try {
+      const panelsManager = ideStore.legacyAdapter?.panelsManager
+      if (!panelsManager) {
+        console.error('PanelsManager non disponible')
+        return
+      }
+      
+      // L'outil est déjà enregistré par ToolManager, on l'active juste
+      let panelId = `tool-${tool.id}`
+      
+      // Cas spéciaux pour les outils système
+      if (tool.name === 'Console') {
+        panelId = `console-${tool.id}`
+      }
+      
+      console.log(`🔄 Activation panneau:`, panelId)
+      const success = panelsManager.activatePanel(panelId, tool.component)
+      
+      if (success) {
+        console.log(`✅ ${tool.name} activé`)
+      } else {
+        console.warn(`⚠️ Échec activation ${tool.name}`)
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur activation outil:', error)
+    }
   }
 
   function handleDragStart(e, tool) {

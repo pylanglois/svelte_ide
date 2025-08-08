@@ -40,6 +40,11 @@
     console.log('Migration explorer2 result:', result)
   }
   
+  async function migrateAllTools() {
+    const result = await ideStore.migrateAllToolsToNewSystem()
+    console.log('Migration complète result:', result)
+  }
+  
   function closeAllNewPanels() {
     const result = ideStore.closeAllNewPanels()
     console.log('Fermeture de tous les panneaux:', result)
@@ -83,6 +88,10 @@
         
         <button class="migrate-btn" onclick={migrateExplorer2}>
           🗂️ Migrer Explorer V2
+        </button>
+        
+        <button class="migrate-btn all" onclick={migrateAllTools}>
+          🚀 MIGRER TOUT
         </button>
       </div>
       
@@ -217,6 +226,16 @@
   
   .migrate-btn:hover {
     background: #e67300;
+  }
+  
+  .migrate-btn.all {
+    background: #28a745;
+    font-weight: bold;
+    margin-left: 8px;
+  }
+  
+  .migrate-btn.all:hover {
+    background: #1e7e34;
   }
   
   .management-section {

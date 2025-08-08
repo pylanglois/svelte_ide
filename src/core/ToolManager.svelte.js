@@ -12,7 +12,44 @@ class ToolManagerSvelte {
 
     this.registeredTools.set(tool.id, tool)
     tool.initialize()
+    
+    // NOUVEAU : Enregistrement direct dans le nouveau système
+    this._registerToolInNewSystem(tool)
+    
+    // Legacy : maintenir pour compatibilité temporaire  
     ideStore.addTool(tool)
+  }
+  
+  _registerToolInNewSystem(tool) {
+    const panelsManager = ideStore.legacyAdapter?.panelsManager
+    if (!panelsManager || !tool.component) return
+    
+    // Mapper les outils système spéciaux
+    if (tool.name === 'Console') {
+      // Console va en bottom
+      panelsManager.registerPanel({
+        id: `console-${tool.id}`,
+        position: 'bottom',
+        persistent: true,
+        title: tool.name,
+        icon: tool.icon,
+        component: tool.component,
+        toolId: tool.id
+      })
+    } else {
+      // Autres outils selon leur position
+      panelsManager.registerPanel({
+        id: `tool-${tool.id}`,
+        position: tool.position,
+        persistent: true,
+        title: tool.name,
+        icon: tool.icon,
+        component: tool.component,
+        toolId: tool.id
+      })
+    }
+    
+    console.log(`🔧 Outil ${tool.name} enregistré dans PanelsManager:`, `tool-${tool.id}`)
   }
 
   unregisterTool(toolId) {

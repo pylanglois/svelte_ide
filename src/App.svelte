@@ -10,18 +10,23 @@
   import StatusBar from '@/components/layout/chrome/StatusBar.svelte'
   import MainViewSplit from '@/components/layout/containers/MainViewSplit.svelte'
   import ContextMenu from '@/components/layout/ui/ContextMenu.svelte'
-  import ToolPanel from '@/components/layout/chrome/ToolPanel.svelte'
   import ResizeHandle from '@/components/layout/containers/ResizeHandle.svelte'
   import AuthPanel from '@/components/layout/ui/AuthPanel.svelte'
   import WelcomeScreen from '@/components/layout/ui/WelcomeScreen.svelte'
-  import LayoutDebugPanel from '@/components/debug/LayoutDebugPanel.svelte'
-  import NewPanelsRenderer from '@/components/layout/NewPanelsRenderer.svelte'
+  import NewToolPanel from '@/components/layout/chrome/NewToolPanel.svelte'
 
   const authStore = getAuthStore()
 
   let leftPanelWidth = $state(250)
   let rightPanelWidth = $state(250)
   let bottomPanelHeight = $state(200)
+  
+  // États réactifs pour les zones de panneaux
+  let hasTopLeft = $state(false)
+  let hasBottomLeft = $state(false)
+  let hasTopRight = $state(false)
+  let hasBottomRight = $state(false)
+  let hasBottom = $state(false)
 
   function createResizeLogic(panel) {
     return (e) => {
@@ -94,6 +99,25 @@
     
     ideStore.setStatusMessage('IDE prêt')
   })()
+  
+  // Surveillance réactive des changements de panneaux
+  $effect(() => {
+    const panelsManager = ideStore.legacyAdapter?.panelsManager
+    if (panelsManager) {
+      // Ajouter un callback pour mettre à jour les états
+      const updateZoneStates = () => {
+        hasTopLeft = panelsManager.hasActivePanelsInPosition('topLeft')
+        hasBottomLeft = panelsManager.hasActivePanelsInPosition('bottomLeft')
+        hasTopRight = panelsManager.hasActivePanelsInPosition('topRight')
+        hasBottomRight = panelsManager.hasActivePanelsInPosition('bottomRight')
+        hasBottom = panelsManager.hasActivePanelsInPosition('bottom')
+        console.log('🔄 App: Zones mises à jour:', { hasTopLeft, hasBottomLeft, hasTopRight, hasBottomRight, hasBottom })
+      }
+      
+      panelsManager.addChangeCallback(updateZoneStates)
+      updateZoneStates() // État initial
+    }
+  })
 </script>
 
 <div class="app">
@@ -106,29 +130,32 @@
       
       <div class="content-area">
         <div class="panels-wrapper">
-          {#if ideStore.activeToolsByPosition.topLeft || ideStore.activeToolsByPosition.bottomLeft}
-            <div class="side-panel-container left" style:width="{leftPanelWidth}px">
-              <ToolPanel position="topLeft" />
-              <ToolPanel position="bottomLeft" />
-            </div>
+          <!-- Zones conditionnelles basées sur les états réactifs -->
+          <div class="side-panel-container left" style:width="{leftPanelWidth}px" style:display="{hasTopLeft || hasBottomLeft ? 'flex' : 'none'}">
+            <NewToolPanel position="topLeft" />
+            <NewToolPanel position="bottomLeft" />
+          </div>
+          
+          {#if hasTopLeft || hasBottomLeft}
             <ResizeHandle direction="vertical" onResizeStart={createResizeLogic('left')} />
           {/if}
           
           <MainViewSplit />
           
-          {#if ideStore.activeToolsByPosition.topRight || ideStore.activeToolsByPosition.bottomRight}
+          {#if hasTopRight || hasBottomRight}
             <ResizeHandle direction="vertical" onResizeStart={createResizeLogic('right')} />
-            <div class="side-panel-container right" style:width="{rightPanelWidth}px">
-              <ToolPanel position="topRight" />
-              <ToolPanel position="bottomRight" />
-            </div>
           {/if}
+          
+          <div class="side-panel-container right" style:width="{rightPanelWidth}px" style:display="{hasTopRight || hasBottomRight ? 'flex' : 'none'}">
+            <NewToolPanel position="topRight" />
+            <NewToolPanel position="bottomRight" />
+          </div>
         </div>
         
-        {#if ideStore.activeToolsByPosition.bottom}
+        {#if hasBottom}
           <ResizeHandle direction="horizontal" onResizeStart={createResizeLogic('bottom')} />
           <div class="bottom-panel-container" style:height="{bottomPanelHeight}px">
-            <ToolPanel position="bottom" />
+            <NewToolPanel position="bottom" />
           </div>
         {/if}
       </div>
@@ -141,9 +168,6 @@
     <WelcomeScreen />
   {/if}
 </div>
-
-<LayoutDebugPanel />
-<NewPanelsRenderer />
 
 <style>
   :global(*) {
