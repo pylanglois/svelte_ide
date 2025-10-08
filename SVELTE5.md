@@ -5,7 +5,7 @@ Ce guide définit les normes obligatoires pour l'écriture de code avec Svelte 5
 ## 1. Les Piliers de la Réactivité : `let`, `$state`, `$derived`, `$effect`
 
 La maîtrise de ces quatre concepts est non négociable.
-
+#
 -   **`let` : Pour les Constantes et Valeurs Statiques**
     -   **Usage :** Uniquement pour les valeurs qui ne changeront **jamais** durant le cycle de vie du composant (fonctions, constantes importées, valeurs initiales non réactives).
     -   **Anti-Pattern :** Utiliser `let` pour une variable qui, si elle changeait, devrait mettre à jour l'interface.

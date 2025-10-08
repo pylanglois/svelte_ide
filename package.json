@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "node scripts/sync-tool-alias.mjs && vite",
+    "build": "node scripts/sync-tool-alias.mjs && vite build",
+    "preview": "node scripts/sync-tool-alias.mjs && vite preview"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^4.0.0",

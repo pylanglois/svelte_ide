@@ -1,4 +1,4 @@
-import { ideStore } from '@/stores/ideStore.svelte.js'
+﻿import { ideStore } from '@/stores/ideStore.svelte.js'
 
 class ToolManagerSvelte {
   constructor() {
@@ -13,7 +13,7 @@ class ToolManagerSvelte {
     this.registeredTools.set(tool.id, tool)
     tool.initialize()
     
-    // NOUVEAU : Enregistrement direct dans le nouveau système
+    // NOUVEAU : Enregistrement direct dans le nouveau systÃ¨me
     this._registerToolInNewSystem(tool)
     
     ideStore.addTool(tool)
@@ -23,7 +23,7 @@ class ToolManagerSvelte {
     const panelsManager = ideStore.panelsManager
     if (!panelsManager || !tool.component) return
     
-    // Mapper les outils système spéciaux
+    // Mapper les outils systÃ¨me spÃ©ciaux
     if (tool.name === 'Console') {
       // Console va en bottom
       panelsManager.registerPanel({
@@ -64,9 +64,33 @@ class ToolManagerSvelte {
 
   async loadTools() {
     try {
-      const toolModules = import.meta.glob('../tools/**/index.svelte.js')
+      const rawRoot = import.meta.env.VITE_TOOL_ROOT
+      if (!rawRoot) {
+        return
+      }
+      let normalizedRoot = rawRoot.trim()
+      if (!normalizedRoot) {
+        return
+      }
+      if (normalizedRoot.startsWith('./')) {
+        normalizedRoot = normalizedRoot.slice(2)
+      }
+      if (normalizedRoot.startsWith('src/')) {
+        normalizedRoot = normalizedRoot.slice(4)
+      }
+      if (!normalizedRoot.startsWith('../')) {
+        normalizedRoot = `../${normalizedRoot}`
+      }
+      if (!normalizedRoot.endsWith('/')) {
+        normalizedRoot = `${normalizedRoot}/`
+      }
+
+      const toolModules = import.meta.glob('../**/index.svelte.js')
       
       for (const path in toolModules) {
+        if (!path.startsWith(normalizedRoot)) {
+          continue
+        }
         try {
           const module = await toolModules[path]()
           if (module.default) {
@@ -88,3 +112,4 @@ class ToolManagerSvelte {
 }
 
 export const toolManager = new ToolManagerSvelte()
+
