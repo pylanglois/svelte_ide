@@ -116,3 +116,9 @@ C'est le composant racine qui assemble toutes les pièces du puzzle.
 6.  **Interaction** : Depuis son composant ou sa classe, il peut appeler les méthodes de `ideStore` (ex: `ideStore.addTab(...)`) pour interagir avec le reste de l'IDE.
 
 En suivant ce modèle, l'outil est automatiquement découvert et intégré à l'IDE au démarrage, tout en restant complètement découplé du code du cœur.
+
+## Principes transverses
+- Observer en priorité les conventions déjà présentes dans la base de code avant d’appliquer de nouvelles règles
+- Respecter la règle de langage : code et noms de fichiers en anglais, commentaires et libellés UI en français
+- Favoriser le principe KISS : écrire le minimum de code nécessaire, éviter les couches d'abstraction inutiles et n'introduire qu'une classe ou un module supplémentaire apportant un bénéfice clair
+- Écrire et conserver les fichiers en UTF-8 SANS BOM afin de préserver les accents et caractères spéciaux. Les fichiers doivent être encodés avec des "LF". **INTERDIT AU CRLF**, **BOM INTERDIT**
