@@ -6,7 +6,7 @@
         "src/*"
       ],
       "@tools/*": [
-        "src/tools/*"
+        "src/test_tools/*"
       ]
     }
   },
