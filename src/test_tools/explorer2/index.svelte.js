@@ -1,7 +1,7 @@
 import { Tool } from '@/core/Tool.svelte.js'
 import ExplorerWrapper from './ExplorerWrapper.svelte'
 import MetadataPanel from './MetadataPanel.svelte'
-// ✅ Import du service de restauration pour l'auto-enregistrement
+// Import du service de restauration pour l'auto-enregistrement
 import './Explorer2RestorationService.svelte.js'
 
 class MetadataV2Tool extends Tool {
@@ -20,8 +20,8 @@ class MetadataV2Tool extends Tool {
 
 export class Explorer2Tool extends Tool {
   constructor(id, position) {
-    super(id, 'Explorateur V2', ExplorerWrapper, position)
-    this.icon = '🗂️'
+    super('Explorateur V2', '🗂️', position, id)
+    this.setComponent(ExplorerWrapper, { toolId: id })
   }
 }
 
@@ -57,3 +57,4 @@ export default {
 }
 
 export { MetadataV2Tool }
+

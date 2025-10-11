@@ -98,10 +98,16 @@ class IdeStore {
 
   moveTool(toolId, newPosition) {
     const tool = this.tools.find(t => t.id === toolId)
-    if (tool && this.activeToolsByPosition.hasOwnProperty(newPosition)) {
-      tool.setPosition(newPosition)
-      this._updateToolLists()
+    if (!tool) return
+
+    const manager = this.panelsManager
+    if (manager && tool.panelId) {
+      const moved = manager.movePanelToPosition(tool.panelId, newPosition)
+      if (!moved) return
     }
+
+    tool.setPosition(newPosition)
+    this._updateToolLists()
   }
 
   toggleTool(toolId) {

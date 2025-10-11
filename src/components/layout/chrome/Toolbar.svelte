@@ -8,47 +8,46 @@
   let topTools = $state([])
   let bottomTools = $state([])
   let sharedBottomTools = $state([])
-  
+  let activePanels = $state(new Map())
+  let focusedPanelId = $state(null)
+
   $effect(() => {
     topTools = isLeft ? ideStore.topLeftTools : ideStore.topRightTools
     bottomTools = isLeft ? ideStore.bottomLeftTools : ideStore.bottomRightTools
     sharedBottomTools = isLeft ? ideStore.bottomTools : []
   })
 
+  $effect(() => {
+    const manager = ideStore.panelsManager
+    if (!manager) {
+      activePanels = new Map()
+      focusedPanelId = null
+      return
+    }
+
+    function refresh() {
+      const next = new Map()
+      manager.activePanelsByPosition.forEach((panel) => {
+        if (panel && panel.toolId) {
+          next.set(panel.toolId, panel.id)
+        }
+      })
+      activePanels = next
+      focusedPanelId = manager.getFocusedPanel()
+    }
+
+    manager.addChangeCallback(refresh)
+    refresh()
+    return () => manager.removeChangeCallback(refresh)
+  })
+
   const topTarget = isLeft ? 'topLeft' : 'topRight'
   const bottomTarget = isLeft ? 'bottomLeft' : 'bottomRight'
 
   function handleToolClick(tool) {
-    // Utiliser directement le PanelsManager avec l'ID pré-enregistré
-    activateToolInNewSystem(tool)
-  }
-
-  async function activateToolInNewSystem(tool) {
-    
-    try {
-      const panelsManager = ideStore.panelsManager
-      if (!panelsManager) {
-        console.error('PanelsManager non disponible')
-        return
-      }
-      
-      // L'outil est déjà enregistré par ToolManager, on l'active juste
-      let panelId = `tool-${tool.id}`
-      
-      // Cas spéciaux pour les outils système
-      if (tool.name === 'Console') {
-        panelId = `console-${tool.id}`
-      }
-      
-      const success = panelsManager.activatePanel(panelId, tool.component)
-      
-      if (!success) {
-        console.warn(`⚠️ Échec activation ${tool.name}`)
-      }
-      
-    } catch (error) {
-      console.error('❌ Erreur activation outil:', error)
-    }
+    const manager = ideStore.panelsManager
+    if (!manager || !tool.panelId) return
+    manager.togglePanel(tool.panelId, tool.component)
   }
 
   function handleDragStart(e, tool) {
@@ -86,6 +85,15 @@
     }
     handleDragEnd()
   }
+
+  function isToolActive(tool) {
+    return activePanels.has(tool.id)
+  }
+
+  function isToolFocused(tool) {
+    if (!activePanels.has(tool.id)) return false
+    return focusedPanelId === activePanels.get(tool.id)
+  }
 </script>
 
 <div class="toolbar" class:left={isLeft} class:right={!isLeft}>
@@ -100,8 +108,8 @@
       {#each topTools as tool (tool.id)}
         <button
           class="tool-button"
-          class:active={tool.active}
-          class:focused={tool.active && ideStore.focusedPanel === tool.position}
+          class:active={isToolActive(tool)}
+          class:focused={isToolFocused(tool)}
           class:dragging={ideStore.draggedTool?.id === tool.id}
           onclick={() => handleToolClick(tool)}
           title={tool.name}
@@ -123,8 +131,8 @@
       {#each bottomTools as tool (tool.id)}
         <button
           class="tool-button"
-          class:active={tool.active}
-          class:focused={tool.active && ideStore.focusedPanel === tool.position}
+          class:active={isToolActive(tool)}
+          class:focused={isToolFocused(tool)}
           class:dragging={ideStore.draggedTool?.id === tool.id}
           onclick={() => handleToolClick(tool)}
           title={tool.name}
@@ -143,8 +151,8 @@
       {#each sharedBottomTools as tool (tool.id)}
         <button
           class="tool-button"
-          class:active={tool.active}
-          class:focused={tool.active && ideStore.focusedPanel === tool.position}
+          class:active={isToolActive(tool)}
+          class:focused={isToolFocused(tool)}
           onclick={() => handleToolClick(tool)}
           title={tool.name}
         >
@@ -183,7 +191,7 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    min-height: 40px; /* Zone de drop minimale */
+    min-height: 40px;
     transition: background-color 0.2s ease;
   }
 

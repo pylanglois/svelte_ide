@@ -36,6 +36,7 @@ class ToolManagerSvelte {
       tool
     })
   }
+
   unregisterTool(toolId) {
     const tool = this.registeredTools.get(toolId)
     if (!tool) {

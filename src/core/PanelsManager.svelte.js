@@ -63,7 +63,8 @@ export class PanelsManager {
         this.panels.set(panelConfig.id, {
             ...panelConfig,
             zoneId: zone.id,
-            isActive: false
+            isActive: false,
+            tool: panelConfig.tool ?? null
         })
 
         return zone
@@ -86,6 +87,7 @@ export class PanelsManager {
         
         if (success) {
             panel.isActive = true
+            if (panel.tool && typeof panel.tool.activate === 'function') panel.tool.activate()
             this.activePanelsByPosition.set(panel.position, panel)
             this.focusedPanel = panelId
             this._notifyChange()
@@ -104,6 +106,7 @@ export class PanelsManager {
         
         if (success) {
             panel.isActive = false
+            if (panel.tool && typeof panel.tool.deactivate === 'function') panel.tool.deactivate()
             
             if (this.activePanelsByPosition.get(panel.position)?.id === panelId) {
                 this.activePanelsByPosition.set(panel.position, null)
@@ -227,6 +230,7 @@ export class PanelsManager {
             const zone = genericLayoutService.getZone(panel.zoneId)
             if (zone && zone.isActive) {
                 panel.isActive = true
+                if (panel.tool && typeof panel.tool.activate === 'function') panel.tool.activate()
                 this.activePanelsByPosition.set(panel.position, panel)
             }
         })

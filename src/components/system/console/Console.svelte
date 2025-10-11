@@ -1,5 +1,6 @@
 <script>
   import { ideStore } from '@/stores/ideStore.svelte.js'
+  let { panelId } = $props()
 
   function selectTab(tabId) {
     ideStore.setActiveConsoleTab(tabId)
@@ -23,6 +24,19 @@
     }
   }
 
+  function focusPanel() {
+    const manager = ideStore.panelsManager
+    if (!manager || !panelId) return
+    manager.focusPanel(panelId)
+  }
+
+  function clearPanelFocus() {
+    const manager = ideStore.panelsManager
+    if (!manager) return
+    manager.clearFocus()
+  }
+
+
   let activeConsoleTabData = $state(null)
 
   $effect(() => {
@@ -37,9 +51,9 @@
 <div 
     class="console-panel" 
     tabindex="-1"
-    onfocus={() => ideStore.setFocusedPanel('console')}
-    onblur={() => ideStore.clearFocusedPanel()}
-    onclick={() => ideStore.setFocusedPanel('console')}
+    onfocus={focusPanel}
+    onblur={clearPanelFocus}
+    onclick={focusPanel}
   >
     <div class="console-header">
       <h3>Console</h3>
