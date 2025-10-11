@@ -1,7 +1,6 @@
 import { Tool } from '@/core/Tool.svelte.js'
 import ExplorerWrapper from './ExplorerWrapper.svelte'
 import MetadataPanel from './MetadataPanel.svelte'
-// Import du service de restauration pour l'auto-enregistrement
 import './Explorer2RestorationService.svelte.js'
 
 class MetadataV2Tool extends Tool {
@@ -57,4 +56,3 @@ export default {
 }
 
 export { MetadataV2Tool }
-

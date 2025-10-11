@@ -11,19 +11,10 @@ class IdeStore {
     this.tools = $state([])
     
     this.statusMessage = $state('')
-    this.focusedPanel = $state(null)
 
     this.draggedTool = $state(null)
     this.draggedToolSource = $state(null)
     this.dragOverZone = $state(null)
-
-    this.activeToolsByPosition = $state({
-      topLeft: null,
-      bottomLeft: null,
-      topRight: null,
-      bottomRight: null,
-      bottom: null
-    })
 
     this.consoleTabs = $state([])
     this.activeConsoleTab = $state(null)
@@ -108,29 +99,6 @@ class IdeStore {
 
     tool.setPosition(newPosition)
     this._updateToolLists()
-  }
-
-  toggleTool(toolId) {
-    const tool = this.tools.find(t => t.id === toolId)
-    if (!tool) return
-
-    const position = tool.position
-    const currentlyActiveTool = this.activeToolsByPosition[position]
-
-    if (currentlyActiveTool) {
-      currentlyActiveTool.deactivate()
-    }
-
-    if (currentlyActiveTool?.id !== tool.id) {
-      tool.activate()
-      this.activeToolsByPosition[position] = tool
-      this.focusedPanel = position
-    } else {
-      this.activeToolsByPosition[position] = null
-      if (this.focusedPanel === position) {
-        this.focusedPanel = null
-      }
-    }
   }
 
   addConsoleTab(title) {
@@ -320,14 +288,6 @@ class IdeStore {
     return layoutService.isFileModified(fileName)
   }
 
-  setFocusedPanel(panelType) {
-    this.focusedPanel = panelType
-  }
-
-  clearFocusedPanel() {
-    this.focusedPanel = null
-  }
-
   setStatusMessage(message) {
     this.statusMessage = message
   }
@@ -488,25 +448,14 @@ class IdeStore {
   }
 
   saveState() {
-    return {
-      focusedPanel: this.focusedPanel,
-      activeToolsByPosition: { ...this.activeToolsByPosition }
-    }
+    return {}
   }
 
   restoreState(state) {
-    if (!state) return
-
-    if (state.focusedPanel !== undefined) {
-      this.focusedPanel = state.focusedPanel
-    }
-
-    if (state.activeToolsByPosition) {
-      Object.assign(this.activeToolsByPosition, state.activeToolsByPosition)
-    }
   }
+
 }
 
 export const ideStore = new IdeStore()
 
-ideStore.addConsoleTab('Général')
+ideStore.addConsoleTab('General')

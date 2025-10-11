@@ -196,9 +196,4 @@
     background: #094771;
     box-shadow: inset 0 0 0 2px #007acc;
   }
-
-  .tab-area.drag-over-invalid {
-    background: #4a1a1a;
-    box-shadow: inset 0 0 0 2px #ff4444;
-  }
 </style>

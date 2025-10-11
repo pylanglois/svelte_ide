@@ -2,52 +2,96 @@
   import { ideStore } from '@/stores/ideStore.svelte.js'
   
   let { position } = $props()
-  
   let activePanels = $state([])
   let loadedComponents = $state(new Map())
-  let panelsManager = null
-  let callbackAttached = false
+  let subscribedManager = null
 
-  // Initialisation manuelle sans $effect
-  function initializePanel() {
-    if (!panelsManager && ideStore.panelsManager) {
-      panelsManager = ideStore.panelsManager
-      panelsManager.addChangeCallback(updatePanels)
-      callbackAttached = true
-      updatePanels()
+  function getToolsForPosition() {
+    switch (position) {
+      case 'topLeft':
+        return ideStore.topLeftTools
+      case 'bottomLeft':
+        return ideStore.bottomLeftTools
+      case 'topRight':
+        return ideStore.topRightTools
+      case 'bottomRight':
+        return ideStore.bottomRightTools
+      case 'bottom':
+        return ideStore.bottomTools
+      default:
+        return []
     }
   }
 
-  // Surveiller la disponibilité du panelsManager
-  $effect(() => {
-    if (ideStore.panelsManager && !callbackAttached) {
-      initializePanel()
+  function updatePanels() {
+    const manager = ideStore.panelsManager
+    if (!manager) {
+      activePanels = []
+      return
     }
-  })
-  
-  // Fonction pour mettre à jour les panneaux (sans effect)
-  async function updatePanels() {
-    const panelsManager = ideStore.panelsManager
-    if (!panelsManager) return
-    
-    const panelsList = Array.from(panelsManager.activePanelsByPosition.entries())
-      .filter(([pos, panel]) => pos === position && panel !== null)
-      .map(([pos, panel]) => panel)
-    
-    // Charger les composants fournis par les outils eux-mêmes
-    for (const panel of panelsList) {
-      if (!loadedComponents.has(panel.id) && panel.component) {
+
+    const tools = getToolsForPosition() || []
+    const nextPanels = []
+
+    for (const tool of tools) {
+      if (!tool || !tool.panelId) continue
+      const panel = manager.getPanel(tool.panelId)
+      if (!panel || !panel.isActive) continue
+      if (panel.component && loadedComponents.get(panel.id) !== panel.component) {
         loadedComponents.set(panel.id, panel.component)
       }
+      nextPanels.push(panel)
     }
-    
-    activePanels = panelsList
+
+    const activeIds = new Set(nextPanels.map(panel => panel.id))
+    for (const [panelId] of loadedComponents) {
+      if (!activeIds.has(panelId)) {
+        loadedComponents.delete(panelId)
+      }
+    }
+
+    activePanels = nextPanels
   }
-  
 
+  function handleManagerChange() {
+    updatePanels()
+  }
+
+  $effect(() => {
+    const manager = ideStore.panelsManager
+
+    if (manager === subscribedManager) {
+      return
+    }
+
+    if (subscribedManager) {
+      subscribedManager.removeChangeCallback(handleManagerChange)
+      subscribedManager = null
+    }
+
+    if (!manager) {
+      activePanels = []
+      return
+    }
+
+    subscribedManager = manager
+    subscribedManager.addChangeCallback(handleManagerChange)
+    updatePanels()
+
+    return () => {
+      if (subscribedManager) {
+        subscribedManager.removeChangeCallback(handleManagerChange)
+        subscribedManager = null
+      }
+    }
+  })
+
+  $effect(() => {
+    const tools = getToolsForPosition()
+    tools.length
+    updatePanels()
+  })
 </script>
-
-<!-- Nouveau système uniquement -->
 {#if activePanels.length > 0}
   <div class="tool-panels-container">
     {#each activePanels as panel (panel.id)}

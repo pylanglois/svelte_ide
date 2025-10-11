@@ -51,6 +51,8 @@
   let thumbWidth = $state(20)
   let thumbPosition = $state(0)
   let needsScrollbar = $state(false)
+  let maxScrollDistance = $state(0)
+  let scrollPercentage = $state(0)
 
   // $effect pour calculer toutes les valeurs - EXPLICITE et FIABLE
   $effect(() => {
@@ -60,16 +62,22 @@
       const minThumbWidth = 20
       thumbWidth = Math.max(containerWidth * scrollRatio, minThumbWidth)
       
-      const maxScroll = contentWidth - containerWidth
-      if (maxScroll > 0) {
-        const scrollPercentage = currentScrollLeft / maxScroll
+      maxScrollDistance = Math.max(contentWidth - containerWidth, 0)
+
+      if (maxScrollDistance > 0) {
+        scrollPercentage = currentScrollLeft / maxScrollDistance
         const availableSpace = containerWidth - thumbWidth
         thumbPosition = scrollPercentage * availableSpace
       } else {
+        scrollPercentage = 0
         thumbPosition = 0
       }
-      
+
       needsScrollbar = contentWidth > containerWidth
+    } else {
+      maxScrollDistance = 0
+      scrollPercentage = 0
+      thumbPosition = 0
     }
   })
 
@@ -132,19 +140,84 @@
     document.removeEventListener('mouseup', handleMouseUp)
   }
 
+  function handleThumbKeyDown(e) {
+    if (!content || !container) return
+
+    const step = container.clientWidth / 4
+    const maxScroll = Math.max(content.scrollWidth - container.clientWidth, 0)
+    let target = content.scrollLeft
+
+    switch (e.key) {
+      case 'Home':
+        target = 0
+        break
+      case 'End':
+        target = maxScroll
+        break
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        target = Math.max(0, content.scrollLeft - step)
+        break
+      case 'ArrowRight':
+      case 'ArrowDown':
+        target = Math.min(maxScroll, content.scrollLeft + step)
+        break
+      default:
+        return
+    }
+
+    e.preventDefault()
+    content.scrollLeft = target
+    currentScrollLeft = target
+    updateScrollbarVisibility()
+  }
+
   // Gérer le clic sur la track
   function handleTrackClick(e) {
     if (!content || !container || e.target === thumb) return
-    
+    if (e.detail === 0) return
+
     const rect = scrollbar.getBoundingClientRect()
     const clickX = e.clientX - rect.left
     const containerWidth = container.clientWidth
     const contentWidth = content.scrollWidth
     const maxScroll = contentWidth - containerWidth
-    
+
     const targetScrollLeft = (clickX / containerWidth) * maxScroll
     content.scrollLeft = Math.max(0, Math.min(maxScroll, targetScrollLeft))
     currentScrollLeft = content.scrollLeft // Sync l'état réactif
+  }
+
+  function handleTrackKeyDown(e) {
+    if (!content || !container) return
+
+    const pageStep = container.clientWidth / 2
+    const maxScroll = Math.max(content.scrollWidth - container.clientWidth, 0)
+    let target = content.scrollLeft
+
+    switch (e.key) {
+      case 'Home':
+        target = 0
+        break
+      case 'End':
+        target = maxScroll
+        break
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        target = Math.max(0, content.scrollLeft - pageStep)
+        break
+      case 'ArrowRight':
+      case 'ArrowDown':
+        target = Math.min(maxScroll, content.scrollLeft + pageStep)
+        break
+      default:
+        return
+    }
+
+    e.preventDefault()
+    content.scrollLeft = target
+    currentScrollLeft = target
+    updateScrollbarVisibility()
   }
 
   // Afficher/masquer le scrollbar
@@ -230,6 +303,7 @@
   bind:this={container}
   onmouseenter={handleMouseEnter}
   onmouseleave={handleMouseLeave}
+  role="presentation"
 >
   <div 
     class="tab-scroll-content"
@@ -241,11 +315,14 @@
   <!-- Zone dédiée pour la scrollbar - TOUJOURS présente -->
   <div class="tab-scrollbar-zone">
     {#if needsScrollbar}
-      <div 
+      <button 
+        type="button"
         class="tab-scrollbar"
         class:visible={showScrollbar}
         bind:this={scrollbar}
         onclick={handleTrackClick}
+        onkeydown={handleTrackKeyDown}
+        aria-label="Défiler les onglets"
       >
         <div 
           class="tab-scrollbar-thumb"
@@ -254,8 +331,16 @@
           style:width="{thumbWidth}px"
           style:transform="translateX({thumbPosition}px)"
           onmousedown={handleThumbMouseDown}
+          onkeydown={handleThumbKeyDown}
+          role="slider"
+          tabindex="0"
+          aria-orientation="horizontal"
+          aria-valuemin="0"
+          aria-valuemax={maxScrollDistance}
+          aria-valuenow={currentScrollLeft}
+          aria-valuetext={`${Math.round(scrollPercentage * 100)}%`}
         ></div>
-      </div>
+      </button>
     {/if}
   </div>
 </div>
@@ -298,10 +383,19 @@
     opacity: 0;
     transition: opacity 0.2s ease;
     cursor: pointer;
+    border: none;
+    padding: 0;
+    display: block;
+    font: inherit;
   }
 
   .tab-scrollbar.visible {
     opacity: 1;
+  }
+
+  .tab-scrollbar:focus-visible {
+    outline: 2px solid #007acc;
+    outline-offset: 2px;
   }
 
   .tab-scrollbar-thumb {
@@ -312,6 +406,7 @@
     cursor: grab;
     transition: background-color 0.15s ease, transform 0.1s ease;
     min-width: 20px;
+    outline: none;
   }
 
   .tab-scrollbar-thumb:hover {

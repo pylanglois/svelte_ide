@@ -42,7 +42,7 @@ C'est le fichier le plus important pour comprendre le fonctionnement de l'IDE. I
 -   **Rôle** : Il centralise tout l'état réactif de l'IDE en utilisant les "runes" de Svelte 5 (`$state`, `$derived`).
 -   **État géré** :
     -   La liste de tous les outils enregistrés (`tools`).
-    -   Les outils actuellement actifs dans chaque panneau (`activeToolsByPosition`).
+    -   Les regroupements d'outils par position (`topLeftTools`, `bottomLeftTools`, `topRightTools`, `bottomRightTools`, `bottomTools`).
     -   La liste des onglets ouverts dans la vue principale (`tabs`).
     -   L'onglet actuellement actif (`activeTab`).
     -   Les notifications, les logs de la console, l'état de l'utilisateur, etc.
@@ -50,7 +50,9 @@ C'est le fichier le plus important pour comprendre le fonctionnement de l'IDE. I
     -   `ideStore.addTab(...)` : Pour qu'un outil ouvre un nouvel onglet.
     -   `ideStore.addNotification(...)` : Pour afficher une notification.
     -   `ideStore.addLog(...)` : Pour écrire dans la console système.
-    -   `ideStore.toggleTool(...)` : Pour activer/désactiver un outil.
+    -   `ideStore.moveTool(...)` : Pour déplacer un outil entre les zones d'affichage.
+
+ Le store expose également `panelsManager`, utilisé pour l'ouverture, la fermeture, le focus et le déplacement des panneaux via les identifiants (`panelId`) attribués à chaque outil par `ToolManager`.
 
 **Un développeur d'outils interagira principalement avec `ideStore` pour intégrer son outil à l'IDE.**
 
@@ -83,7 +85,7 @@ Pour la communication découplée entre les outils, ou entre l'IDE et les outils
 Ce dossier contient la logique "métier" de l'IDE lui-même.
 
 -   `Tool.svelte.js` : La classe de base que tous les outils doivent étendre. Elle définit les propriétés fondamentales d'un outil : `id`, `name`, `icon`, `position`, et son état `active`.
--   `ToolManager.svelte.js` : Le service responsable du chargement des outils. Au démarrage de l'application, il scanne le répertoire `src/tools` à la recherche de fichiers `index.svelte.js`, les importe dynamiquement et appelle leur fonction `register` pour les intégrer à l'IDE.
+-   `ToolManager.svelte.js` : Le service responsable du chargement des outils. Au démarrage de l'application, il scanne le répertoire `src/tools` à la recherche de fichiers `index.svelte.js`, les importe dynamiquement, appelle leur fonction `register` et attribue un `panelId` stable à chaque outil avant de l'enregistrer auprès du `PanelsManager`.
 -   `Tab.svelte.js` : La classe de base pour les onglets, définissant leurs propriétés (ID, titre, composant à rendre, etc.).
 
 ### 4. `src/components/layout/` : L'Interface de l'IDE
@@ -91,7 +93,7 @@ Ce dossier contient la logique "métier" de l'IDE lui-même.
 Ce dossier contient les composants Svelte qui forment la structure visuelle de l'IDE. Ces composants sont "passifs" : leur rôle est de lire l'état depuis `ideStore` et de l'afficher.
 
 -   `Toolbar.svelte` : Lit la liste des outils depuis `ideStore` et affiche les icônes correspondantes.
--   `ToolPanel.svelte` : Lit quel outil est actif pour sa position (`ideStore.activeToolsByPosition`) et rend le composant de cet outil.
+-   `ToolPanel.svelte` : Utilise `panelsManager` et les `panelId` fournis par chaque outil pour récupérer et afficher le composant actif de la zone ciblée.
 -   `MainView.svelte` : Lit la liste des onglets (`ideStore.tabs`) pour afficher la barre d'onglets et rend le composant de l'onglet actif (`ideStore.activeTab`).
 
 Ces composants ne contiennent aucune logique métier. Ils sont uniquement responsables du rendu de l'état.

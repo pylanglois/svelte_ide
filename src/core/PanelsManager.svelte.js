@@ -52,7 +52,7 @@ export class PanelsManager {
             persistent: panelConfig.persistent !== false,
             metadata: {
                 title: panelConfig.title || panelConfig.id,
-                icon: panelConfig.icon || '📋',
+                icon: panelConfig.icon || '',
                 component: panelConfig.component,
                 toolId: panelConfig.toolId
             }
@@ -189,9 +189,10 @@ export class PanelsManager {
             type: 'panel',
             position: newPosition,
             persistent: panel.persistent !== false,
+            tool: panel.tool ?? null,
             metadata: {
                 title: panel.title || panel.id,
-                icon: panel.icon || '📋',
+                icon: panel.icon || '',
                 component: panel.component,
                 toolId: panel.toolId
             }
@@ -342,3 +343,5 @@ export class PanelsManager {
 }
 
 export const panelsManager = new PanelsManager()
+
+

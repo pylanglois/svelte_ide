@@ -36,6 +36,7 @@
   - Gestion des panneaux via zones génériques
   - Position dynamique (plus hardcodée)
   - Intégration avec GenericLayoutService
+  - Attribution d'un `panelId` stable par outil, activation/désactivation via `tool.activate()`/`tool.deactivate()` et gestion du focus partagé
 
 ## Architecture Générique Obtenue
 
