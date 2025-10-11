@@ -5,35 +5,36 @@
   let { layoutNode } = $props()
 
   let activeTabData = $state(null)
+  let activeTabScrollMode = $state('ide')
 
   $effect(() => {
-    // Priorité au focus global s'il correspond à un tab de ce groupe
     const globalFocusedTab = layoutService.globalFocusedTab
-    const globalTabInThisGroup = globalFocusedTab ? 
+    const globalTabInThisGroup = globalFocusedTab ?
       layoutNode.tabs.find(tab => tab.id === globalFocusedTab) : null
-    
+
     if (globalTabInThisGroup) {
       activeTabData = globalTabInThisGroup
     } else {
-      // Sinon, utiliser l'activeTab local du groupe
       activeTabData = layoutNode.tabs.find(tab => tab.id === layoutNode.activeTab)
     }
+
+    activeTabScrollMode = activeTabData ? (activeTabData.scrollMode || 'ide') : 'ide'
   })
 
   function handleEmptyAreaDragOver(e) {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
-    
+
     const dragInfo = dragDropService.getDragInfo()
     if (!dragInfo.draggedTab) return
-    
+
     const rect = e.currentTarget.getBoundingClientRect()
     dragDropService.setDropPreviewZone(layoutNode.id, 'tabbar', rect)
   }
 
   function handleEmptyAreaDrop(e) {
     e.preventDefault()
-    
+
     const dragInfo = dragDropService.getDragInfo()
     if (!dragInfo.draggedTab) return
 
@@ -49,46 +50,64 @@
         -1
       )
     }
-    
+
     dragDropService.endDrag()
   }
 </script>
 
 {#if activeTabData && activeTabData.component}
   {@const Component = activeTabData.component}
-  {#if activeTabData.fileContent}
-    <Component 
-      content={activeTabData.fileContent} 
-      fileName={activeTabData.fileName}
-      {...activeTabData}
-    />
+  {#snippet renderComponent()}
+    {#if activeTabData.fileContent}
+      <Component
+        content={activeTabData.fileContent}
+        fileName={activeTabData.fileName}
+        {...activeTabData}
+      />
+    {:else}
+      <Component {...activeTabData} />
+    {/if}
+  {/snippet}
+  {#if activeTabScrollMode === 'tool'}
+    {@render renderComponent()}
   {:else}
-    <Component {...activeTabData} />
+    <div class="tab-scroll-surface">
+      {@render renderComponent()}
+    </div>
   {/if}
 {:else if activeTabData}
   <div class="placeholder">
     <h3>{activeTabData.title}</h3>
-    <p>Contenu à implémenter</p>
+    <p>Contenu Ã  implÃ©menter</p>
   </div>
 {:else}
   <!-- Zone de drop pour tabgroup vide -->
-  <div 
+  <div
     class="empty-tabgroup"
     class:drag-over={dragDropService.hasDropPreview(layoutNode.id) && dragDropService.getDropPreview(layoutNode.id)?.zone === 'tabbar'}
     ondragover={handleEmptyAreaDragOver}
     ondrop={handleEmptyAreaDrop}
     ondragleave={() => dragDropService.clearDragTarget()}
     role="region"
-    aria-label="Zone de dépôt vide"
+    aria-label="Zone de dÃ©pÃ´t vide"
   >
     <div class="empty-message">
-      <span class="empty-icon">📄</span>
+      <span class="empty-icon">ðŸ“‚</span>
       <p>Glissez un onglet ici</p>
     </div>
   </div>
 {/if}
 
 <style>
+  .tab-scroll-surface {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    min-height: 0;
+    height: 100%;
+  }
+
   .placeholder {
     flex: 1;
     display: flex;

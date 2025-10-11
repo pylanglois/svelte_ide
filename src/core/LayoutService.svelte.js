@@ -59,7 +59,8 @@ export class LayoutService {
           title: tab.title,
           closable: tab.closable,
           icon: tab.icon,
-          descriptor: tab.descriptor || null
+          descriptor: tab.descriptor || null,
+          scrollMode: tab.scrollMode || 'ide'
         }
       }) : [],
       activeTab: layout.activeTab ? layout.activeTab.id : null
@@ -417,7 +418,7 @@ export class LayoutService {
     group.tabs = group.tabs.filter(t => t.id !== activeTab.id)
     group.activeTab = group.tabs.length > 0 ? group.tabs[0].id : null
 
-    // Créer le nouveau container
+    // CrÃƒÂ©er le nouveau container
     const newContainer = {
       type: 'container',
       direction: 'vertical',

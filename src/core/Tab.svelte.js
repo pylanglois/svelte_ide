@@ -1,11 +1,12 @@
 export class Tab {
-  constructor(id, title, component, closable = true, icon = null) {
+  constructor(id, title, component, closable = true, icon = null, scrollMode = 'ide') {
     this.id = id
     this.title = title
     this.component = component
     this.closable = closable
     this.icon = icon
-    this.modified = $state(false)
+    this.modified = (false)
+    this.scrollMode = scrollMode
     this.descriptor = null // Descriptor pour la sérialisation/restauration
   }
 
@@ -23,7 +24,8 @@ export class Tab {
       title: this.title,
       closable: this.closable,
       icon: this.icon,
-      descriptor: this.descriptor
+      descriptor: this.descriptor,
+      scrollMode: this.scrollMode
     }
   }
 }

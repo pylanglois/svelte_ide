@@ -1,10 +1,41 @@
 <script>
-  let { content = "Contenu par défaut de l'Explorateur V2" } = $props()
+  let {
+    content: initialContent = "Contenu par défaut de l'Explorateur V2",
+    fileName = 'untitled',
+    onContentChange = null,
+    onDirtyStateChange = null
+  } = $props()
+
+  let content = $state('')
+  let lastDirtyState = $state(false)
+
+  $effect(() => {
+    content = initialContent
+    lastDirtyState = false
+  })
+
+  function handleInput() {
+    const isDirty = content !== initialContent
+
+    if (onDirtyStateChange && isDirty !== lastDirtyState) {
+      lastDirtyState = isDirty
+      onDirtyStateChange(isDirty)
+    }
+
+    if (onContentChange) {
+      onContentChange(content)
+    }
+  }
 </script>
 
 <div class="file-content">
   <div class="content-body">
-    <pre>{content}</pre>
+    <textarea
+      bind:value={content}
+      oninput={handleInput}
+      class="file-editor"
+      spellcheck="false"
+    ></textarea>
   </div>
 </div>
 
@@ -19,17 +50,25 @@
 
   .content-body {
     flex: 1;
-    overflow: auto;
+    overflow: hidden;
     padding: 12px;
     user-select: text;
+    min-height: 0;
   }
 
-  pre {
-    margin: 0;
-    font-family: 'Cascadia Code', 'Consolas', 'Monaco', monospace;
-    font-size: 13px;
-    line-height: 1.4;
-    white-space: pre-wrap;
-    word-wrap: break-word;
+  .file-editor {
+    width: 100%;
+    min-height: 100%;
+    background: #1e1e1e;
+    color: #cccccc;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    border: none;
+    resize: none;
+    outline: none;
+    padding: 0;
+    box-sizing: border-box;
+    white-space: pre;
   }
 </style>

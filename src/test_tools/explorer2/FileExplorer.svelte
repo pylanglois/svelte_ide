@@ -13,7 +13,7 @@
       case 'html': return '🌐'
       case 'css': return '🎨'
       case 'json': return '{}'
-      case 'md': return '📝'
+      case 'md': return '📘'
       default: return '📄'
     }
   }
@@ -29,11 +29,12 @@
       content: file.content || 'Contenu par défaut V2',
       component: FileViewer,
       icon: getIconForFile(file.name),
-      toolId: toolId
+      toolId: toolId,
+      scrollMode: 'tool'
     })
-    
+
     ideStore.addLog(`Fichier ${file.name} ouvert`, 'info', 'Explorateur V2')
-    
+
     ideStore.addNotification(
       'Fichier ouvert (V2)',
       `Le fichier "${file.name}" a été ouvert depuis l'Explorateur V2`,
@@ -49,12 +50,12 @@
 
   function handleContextMenu(e, item) {
     e.preventDefault()
-    
+
     const menuItems = [
       {
         id: 'hello-v2',
         label: 'Hello V2',
-        icon: '🚀',
+        icon: '👋',
         action: (context) => {
           ideStore.addLog(`Hello V2 action sur ${context.name}`, 'info', 'Menu contextuel V2')
         }
@@ -79,7 +80,7 @@
       {
         id: 'open-v2',
         label: 'Ouvrir (V2)',
-        icon: '📂',
+        icon: '📄',
         action: (context) => {
           if (context.type === 'file') {
             handleFileDoubleClick(context)
@@ -96,13 +97,13 @@
 <div class="file-explorer">
   <div class="toolbar">
     <button class="refresh-btn" title="Actualiser V2">
-      🔄
+      🔁
     </button>
     <button class="new-folder-btn" title="Nouveau dossier V2">
-      🗂️+
+      📁+
     </button>
     <button class="new-file-btn" title="Nouveau fichier V2">
-      🗒️+
+      📄+
     </button>
   </div>
   
@@ -117,7 +118,7 @@
             onclick={() => handleFolderClick(item)}
             oncontextmenu={(e) => handleContextMenu(e, item)}
           >
-            <span class="icon">🗂️</span>
+            <span class="icon">📁</span>
             <span class="name">{item.name}</span>
           </div>
         {:else}
@@ -129,7 +130,7 @@
             ondblclick={() => handleFileDoubleClick(item)}
             oncontextmenu={(e) => handleContextMenu(e, item)}
           >
-            <span class="icon">🗒️</span>
+            <span class="icon">{getIconForFile(item.name)}</span>
             <span class="name">{item.name}</span>
           </div>
         {/if}

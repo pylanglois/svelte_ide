@@ -214,10 +214,10 @@ class IdeStore {
     }
   }
 
-  openFile({ fileName, content, component, icon = '📄', toolId = null }) {
+  openFile({ fileName, content, component, icon = '📄', toolId = null, scrollMode = 'ide' }) {
     const tabId = this._generateTabId()
     
-    const tab = new Tab(tabId, fileName, component, true, icon)
+    const tab = new Tab(tabId, fileName, component, true, icon, scrollMode)
     tab.fileName = fileName
     tab.content = content
     tab.originalContent = content
@@ -333,7 +333,7 @@ class IdeStore {
         for (const tabData of allTabsData) {
           if (tabData.descriptor) {
             
-            const tab = new Tab(tabData.id, tabData.title, null, tabData.closable, tabData.icon)
+            const tab = new Tab(tabData.id, tabData.title, null, tabData.closable, tabData.icon, tabData.scrollMode || 'ide')
             tab.setDescriptor(tabData.descriptor)
             
             const hydrateCallback = (component, data = {}) => {
