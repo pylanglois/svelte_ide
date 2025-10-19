@@ -1,11 +1,42 @@
 <script>
   import { contextMenuService } from '@/core/ContextMenuService.svelte.js'
 
-  // Plus besoin d'état local, on accède directement au service réactif
-  // avec les runes Svelte 5, le service est automatiquement réactif
+  let menuElement = $state(null)
 
   function handleItemClick(item) {
     contextMenuService.executeAction(item.id)
+  }
+
+  function focusFirstItem() {
+    if (!menuElement) return
+    const items = menuElement.querySelectorAll('[role="menuitem"]:not(.disabled)')
+    if (items.length > 0) {
+      items[0].focus()
+    } else {
+      menuElement.focus()
+    }
+  }
+
+  function handleMenuKeyDown(e) {
+    if (!menuElement) return
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      contextMenuService.hide()
+      return
+    }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+
+    e.preventDefault()
+    const items = Array.from(menuElement.querySelectorAll('[role="menuitem"]:not(.disabled)'))
+    if (items.length === 0) return
+    const currentIndex = items.indexOf(document.activeElement)
+    let nextIndex = currentIndex
+    if (e.key === 'ArrowDown') {
+      nextIndex = (currentIndex + 1) % items.length
+    } else if (e.key === 'ArrowUp') {
+      nextIndex = (currentIndex - 1 + items.length) % items.length
+    }
+    items[nextIndex]?.focus()
   }
 
   // Gestion des événements globaux avec $effect
@@ -32,12 +63,23 @@
       document.removeEventListener('contextmenu', handleGlobalContextMenu)
     }
   })
+
+  $effect(() => {
+    if (contextMenuService.isVisible) {
+      focusFirstItem()
+    }
+  })
 </script>
 
 {#if contextMenuService.isVisible}
   <div 
     class="context-menu" 
     style="left: {contextMenuService.position.x}px; top: {contextMenuService.position.y}px;"
+    role="menu"
+    aria-label="Menu contextuel"
+    tabindex="-1"
+    bind:this={menuElement}
+    onkeydown={handleMenuKeyDown}
   >
     {#each contextMenuService.menuItems as item}
       <div 
@@ -52,9 +94,10 @@
             handleItemClick(item)
           }
         }}
+        aria-disabled={item.disabled}
       >
         {#if item.icon}
-          <span class="icon">{item.icon}</span>
+          <span class="icon" aria-hidden="true">{item.icon}</span>
         {/if}
         <span class="label">{item.label}</span>
         {#if item.shortcut}
@@ -62,7 +105,7 @@
         {/if}
       </div>
       {#if item.separator}
-        <div class="separator"></div>
+        <div class="separator" role="separator" aria-hidden="true"></div>
       {/if}
     {/each}
   </div>

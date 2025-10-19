@@ -36,6 +36,13 @@
     manager.clearFocus()
   }
 
+  function handleTabKeydown(e, tabId) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      selectTab(tabId)
+    }
+  }
+
 
   let activeConsoleTabData = $state(null)
 
@@ -53,13 +60,13 @@
     tabindex="-1"
     onfocus={focusPanel}
     onblur={clearPanelFocus}
-    onclick={focusPanel}
+    onfocusin={focusPanel}
   >
     <div class="console-header">
       <h3>Console</h3>
       
       {#if ideStore.consoleTabs.length > 0}
-        <div class="console-tab-bar">
+        <div class="console-tab-bar" role="tablist" aria-label="Onglets de console">
           {#each ideStore.consoleTabs as tab (tab.id)}
             <div 
               class="console-tab"
@@ -67,6 +74,10 @@
               onclick={() => selectTab(tab.id)}
               role="tab"
               tabindex="0"
+              onkeydown={(e) => handleTabKeydown(e, tab.id)}
+              aria-selected={tab.id === ideStore.activeConsoleTab}
+              id={`console-tab-${tab.id}`}
+              aria-controls="console-tabpanel"
             >
               <span class="tab-title">{tab.title}</span>
               <div class="tab-actions">
@@ -74,6 +85,7 @@
                   class="clear-tab-btn"
                   onclick={() => clearTab(tab.id)}
                   title="Nettoyer l'onglet"
+                  type="button"
                 >
                   🧹
                 </button>
@@ -81,6 +93,7 @@
                   class="close-tab-btn"
                   onclick={(e) => closeTab(e, tab.id)}
                   title="Fermer l'onglet"
+                  type="button"
                 >
                   ×
                 </button>
@@ -92,7 +105,12 @@
     </div>
       
     {#if ideStore.consoleTabs.length > 0}
-      <div class="console-content">
+      <div
+        class="console-content"
+        role="tabpanel"
+        id="console-tabpanel"
+        aria-labelledby={ideStore.activeConsoleTab ? `console-tab-${ideStore.activeConsoleTab}` : undefined}
+      >
         {#if ideStore.activeConsoleTab}
           {@const currentTab = ideStore.consoleTabs.find(tab => tab.id === ideStore.activeConsoleTab)}
           {#if currentTab && currentTab.logs && currentTab.logs.length > 0}

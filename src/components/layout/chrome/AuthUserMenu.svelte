@@ -6,6 +6,9 @@
   
   let userMenu = $state(false)
   let wasAuthenticated = $state(false)
+  let menuButton = $state(null)
+  const menuId = 'auth-user-menu'
+  const buttonId = 'auth-user-menu-button'
 
   $effect(() => {
     authStore.initialize()
@@ -21,6 +24,18 @@
       )
     }
     wasAuthenticated = authStore.isAuthenticated
+  })
+
+  $effect(() => {
+    if (userMenu) {
+      const menu = document.getElementById(menuId)
+      const focusTarget = menu?.querySelector('[role="menuitem"]')
+      focusTarget?.focus()
+    } else if (menuButton) {
+      if (document.activeElement && document.activeElement.closest('.user-menu')) {
+        menuButton.focus()
+      }
+    }
   })
 
   function toggleUserMenu() {
@@ -89,24 +104,33 @@
 
 <div class="user-section">
   {#if authStore.isAuthenticated && authStore.currentUser}
-    <button class="user-btn" onclick={toggleUserMenu}>
+    <button
+      class="user-btn"
+      onclick={toggleUserMenu}
+      type="button"
+      aria-haspopup="menu"
+      aria-expanded={userMenu}
+      aria-controls={menuId}
+      id={buttonId}
+      bind:this={menuButton}
+    >
       <span class="user-avatar">
         {#if getUserAvatarImage(authStore.currentUser)}
-          <img src={getUserAvatarImage(authStore.currentUser)} alt="Avatar" />
+          <img src={getUserAvatarImage(authStore.currentUser)} alt={`Avatar de ${getUserDisplayName(authStore.currentUser)}`} />
         {:else}
           {getUserAvatar(authStore.currentUser)}
         {/if}
       </span>
       <span class="username">{getUserDisplayName(authStore.currentUser)}</span>
-      <span class="dropdown-arrow" class:rotated={userMenu}>▼</span>
+      <span class="dropdown-arrow" class:rotated={userMenu} aria-hidden="true">▼</span>
     </button>
     
     {#if userMenu}
-      <div class="user-menu">
+      <div class="user-menu" role="menu" id={menuId} aria-labelledby={buttonId}>
         <div class="user-info">
           <div class="user-avatar-large">
             {#if getUserAvatarImage(authStore.currentUser)}
-              <img src={getUserAvatarImage(authStore.currentUser)} alt="Avatar" />
+              <img src={getUserAvatarImage(authStore.currentUser)} alt={`Avatar de ${getUserDisplayName(authStore.currentUser)}`} />
             {:else}
               {getUserAvatar(authStore.currentUser)}
             {/if}
@@ -117,7 +141,7 @@
           </div>
         </div>
         <hr class="menu-separator">
-        <button class="menu-item logout-item" onclick={handleLogout}>
+        <button class="menu-item logout-item" onclick={handleLogout} role="menuitem" type="button">
           <span class="menu-icon">🚪</span>
           Se déconnecter
         </button>
@@ -154,34 +178,6 @@
     background: transparent;
     border: 1px solid #3e3e42;
     border-radius: 4px;
-  }
-
-  .login-buttons {
-    display: flex;
-    gap: 8px;
-  }
-
-  .login-btn {
-    background: linear-gradient(135deg, #007acc, #005a9e);
-    border: none;
-    color: white;
-    padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-  }
-
-  .login-btn:hover:not(:disabled) {
-    background: linear-gradient(135deg, #1177bb, #006bb3);
-    transform: translateY(-1px);
-  }
-
-  .login-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
   }
 
   .user-btn {

@@ -92,6 +92,23 @@
 
     contextMenuService.show(e.clientX, e.clientY, item, menuItems)
   }
+
+  function handleFolderKeydown(e, folder) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      handleFolderClick(folder)
+    }
+  }
+
+  function handleFileKeydown(e, file) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleFileDoubleClick(file)
+    } else if (e.key === ' ') {
+      e.preventDefault()
+      handleFileClick(file)
+    }
+  }
 </script>
 
 <div class="file-explorer">
@@ -107,32 +124,40 @@
     </button>
   </div>
   
-  <div class="file-tree">
+  <div class="file-tree" role="tree" aria-label="Arborescence de fichiers V2">
     {#if files.length > 0}
       {#each files as item}
         {#if item.type === 'folder'}
-          <div 
+          <button 
             class="folder-item" 
             class:selected={selectedFileName === item.name} 
             data-context-menu
             onclick={() => handleFolderClick(item)}
             oncontextmenu={(e) => handleContextMenu(e, item)}
+            onkeydown={(e) => handleFolderKeydown(e, item)}
+            type="button"
+            role="treeitem"
+            aria-selected={selectedFileName === item.name}
           >
-            <span class="icon">📁</span>
+            <span class="icon" aria-hidden="true">📁</span>
             <span class="name">{item.name}</span>
-          </div>
+          </button>
         {:else}
-          <div 
+          <button 
             class="file-item" 
             class:selected={selectedFileName === item.name} 
             data-context-menu
             onclick={() => handleFileClick(item)} 
             ondblclick={() => handleFileDoubleClick(item)}
             oncontextmenu={(e) => handleContextMenu(e, item)}
+            onkeydown={(e) => handleFileKeydown(e, item)}
+            type="button"
+            role="treeitem"
+            aria-selected={selectedFileName === item.name}
           >
-            <span class="icon">{getIconForFile(item.name)}</span>
+            <span class="icon" aria-hidden="true">{getIconForFile(item.name)}</span>
             <span class="name">{item.name}</span>
-          </div>
+          </button>
         {/if}
       {/each}
     {:else}
@@ -185,6 +210,11 @@
     padding: 4px 12px;
     cursor: pointer;
     font-size: 13px;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    color: #cccccc;
   }
 
   .folder-item:hover, .file-item:hover {
@@ -212,6 +242,11 @@
     text-align: center;
     padding: 20px;
     color: #858585;
+  }
+
+  .folder-item:focus-visible, .file-item:focus-visible {
+    outline: 2px solid #007acc;
+    outline-offset: 2px;
   }
 
   .empty-state p {

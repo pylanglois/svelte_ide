@@ -28,6 +28,13 @@
     onContextMenu?.(e, tab)
   }
 
+  function handleKeyDown(e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      handleClick()
+    }
+  }
+
   function handleDragStart(e) {
     onDragStart?.(e, tab)
   }
@@ -98,7 +105,7 @@
   data-context-menu
   data-tab-id={tab.id}
   onclick={handleClick}
-  onkeydown={(e) => e.key === 'Enter' && handleClick()}
+  onkeydown={handleKeyDown}
   oncontextmenu={handleContextMenu}
   ondragstart={handleDragStart}
   ondragover={(e) => handleDragOver(e, tab)}
@@ -107,21 +114,26 @@
   ondragend={handleDragEnd}
   draggable="true"
   role="tab"
-  tabindex="0"
+  id={`tab-${tab.id}`}
+  aria-selected={isActive}
+  aria-controls={`panel-${groupId}`}
+  tabindex={isActive ? 0 : -1}
 >
   <span class="tab-title">
     {#if tab.icon}
-      <span class="tab-icon">{tab.icon}</span>
+      <span class="tab-icon" aria-hidden="true">{tab.icon}</span>
     {/if}
     {tab.title}
     {#if ideStore.isTabModified(tab.id)}
-      <span class="modified-indicator">●</span>
+      <span class="modified-indicator" aria-hidden="true">●</span>
     {/if}
   </span>
   {#if tab.closable}
     <button 
       class="close-tab-btn"
       onclick={handleClose}
+      type="button"
+      aria-label={`Fermer ${tab.title}`}
     >
       ×
     </button>

@@ -3,6 +3,7 @@
   import { layoutService } from '@/core/LayoutService.svelte.js'
 
   let { layoutNode, children } = $props()
+  let activeTabId = $state(null)
 
   function handleContentAreaDragOver(e) {
     e.preventDefault()
@@ -61,6 +62,14 @@
     
     dragDropService.endDrag()
   }
+
+  $effect(() => {
+    const globalFocusedId = layoutService.globalFocusedTab
+    const preferredId = globalFocusedId && layoutNode.tabs.some(tab => tab.id === globalFocusedId)
+      ? globalFocusedId
+      : layoutNode.activeTab
+    activeTabId = preferredId || null
+  })
 </script>
 
 <!-- Zone de contenu - DROP pour split -->
@@ -71,6 +80,8 @@
   ondragleave={() => dragDropService.clearDragTarget()}
   role="tabpanel"
   tabindex="0"
+  id={`panel-${layoutNode.id}`}
+  aria-labelledby={activeTabId ? `tab-${activeTabId}` : undefined}
 >
   <!-- Zones de drop pour créer des splits -->
   {#if dragDropService.isDragging}

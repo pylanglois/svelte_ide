@@ -122,10 +122,10 @@
       
       <div class="history-list">
         {#each history as item}
-          <div class="history-item" onclick={() => useHistoryItem(item)}>
+          <button type="button" class="history-item" onclick={() => useHistoryItem(item)}>
             <span class="history-expression">{item.expression}</span>
             <span class="history-result">= {item.result}</span>
-          </div>
+          </button>
         {/each}
       </div>
     </div>
@@ -273,6 +273,11 @@
 
   .history-item:hover {
     background: #252526;
+  }
+
+  .history-item:focus-visible {
+    outline: 2px solid #007acc;
+    outline-offset: 2px;
   }
 
   .history-expression {

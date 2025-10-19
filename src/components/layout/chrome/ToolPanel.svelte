@@ -105,7 +105,8 @@
         class="panel-wrapper"
         data-panel-id={panel.id}
         onfocusin={() => focusPanel(panel.id)}
-        onmousedown={() => focusPanel(panel.id)}
+        role="region"
+        aria-label={panel.title ? `Outil ${panel.title}` : 'Outil actif'}
       >
         {#if loadedComponents.has(panel.id)}
           {@const PanelComponent = loadedComponents.get(panel.id)}

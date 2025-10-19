@@ -78,7 +78,7 @@
 {:else if activeTabData}
   <div class="placeholder">
     <h3>{activeTabData.title}</h3>
-    <p>Contenu Ã  implÃ©menter</p>
+    <p>Contenu a implementer</p>
   </div>
 {:else}
   <!-- Zone de drop pour tabgroup vide -->
@@ -89,10 +89,10 @@
     ondrop={handleEmptyAreaDrop}
     ondragleave={() => dragDropService.clearDragTarget()}
     role="region"
-    aria-label="Zone de dÃ©pÃ´t vide"
+    aria-label="Zone de depot vide"
   >
     <div class="empty-message">
-      <span class="empty-icon">ðŸ“‚</span>
+      <span class="empty-icon" aria-hidden="true">[ ]</span>
       <p>Glissez un onglet ici</p>
     </div>
   </div>

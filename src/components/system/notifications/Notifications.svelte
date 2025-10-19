@@ -29,6 +29,13 @@
     }
   }
 
+  function handleNotificationKeydown(e, notification) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      handleNotificationClick(notification)
+    }
+  }
+
   function handleRemoveNotification(e, notificationId) {
     e.stopPropagation()
     ideStore.removeNotification(notificationId)
@@ -58,44 +65,51 @@
     </div>
   </div>
 
-  <div class="notifications-content">
+  <ul class="notifications-content" role="list">
     {#if ideStore.notifications.length === 0}
-      <div class="empty-notifications">
+      <li class="empty-notifications">
         <div class="empty-icon">🔔</div>
         <p>Aucune notification</p>
-      </div>
+      </li>
     {:else}
       {#each ideStore.notifications as notification (notification.id)}
-        <div 
-          class="notification-item {notification.type}"
-          class:unread={!notification.read}
-          onclick={() => handleNotificationClick(notification)}
-        >
-          <div class="notification-content">
-            <div class="notification-header">
-              <span class="notification-icon">{getNotificationIcon(notification.type)}</span>
-              <span class="notification-title">{notification.title}</span>
-              <button 
-                class="remove-btn"
-                onclick={(e) => handleRemoveNotification(e, notification.id)}
-                title="Supprimer"
-              >
-                ×
-              </button>
-            </div>
-            <div class="notification-message">{notification.message}</div>
-            <div class="notification-meta">
-              <span class="notification-source">{notification.source}</span>
-              <span class="notification-time">{formatTime(notification.timestamp)}</span>
+        <li class="notification-item {notification.type}" class:unread={!notification.read}>
+          <div
+            class="notification-button"
+            role="button"
+            tabindex="0"
+            aria-pressed={notification.read}
+            onclick={() => handleNotificationClick(notification)}
+            onkeydown={(e) => handleNotificationKeydown(e, notification)}
+          >
+            <div class="notification-content">
+              <div class="notification-header">
+                <span class="notification-icon" aria-hidden="true">{getNotificationIcon(notification.type)}</span>
+                <span class="notification-title">{notification.title}</span>
+                <button 
+                  class="remove-btn"
+                  onclick={(e) => handleRemoveNotification(e, notification.id)}
+                  title="Supprimer"
+                  type="button"
+                  aria-label={`Supprimer la notification ${notification.title}`}
+                >
+                  ×
+                </button>
+              </div>
+              <div class="notification-message">{notification.message}</div>
+              <div class="notification-meta">
+                <span class="notification-source">{notification.source}</span>
+                <span class="notification-time">{formatTime(notification.timestamp)}</span>
+              </div>
             </div>
           </div>
           {#if !notification.read}
             <div class="unread-indicator"></div>
           {/if}
-        </div>
+        </li>
       {/each}
     {/if}
-  </div>
+  </ul>
 </div>
 
 <style>
@@ -146,6 +160,8 @@
     flex: 1;
     overflow-y: auto;
     padding: 8px;
+    list-style: none;
+    margin: 0;
   }
 
   .empty-notifications {
@@ -193,6 +209,19 @@
 
   .notification-item.info {
     border-left: 3px solid #60a5fa;
+  }
+
+  .notification-button {
+    display: block;
+    width: 100%;
+    height: 100%;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .notification-button:focus-visible {
+    outline: 2px solid #007acc;
+    outline-offset: 2px;
   }
 
   .notification-header {

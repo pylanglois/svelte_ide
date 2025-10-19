@@ -155,6 +155,44 @@
     
     dragDropService.endDrag()
   }
+
+  function handleKeyNavigation(e) {
+    if (!['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+      return
+    }
+
+    const tabs = Array.from(e.currentTarget.querySelectorAll('[role="tab"]'))
+    if (tabs.length === 0) return
+
+    const currentElement = document.activeElement
+    let currentIndex = tabs.indexOf(currentElement)
+
+    if (currentIndex === -1) {
+      const focusedId = layoutService.globalFocusedTab || layoutNode.activeTab
+      currentIndex = layoutNode.tabs.findIndex(tab => tab.id === focusedId)
+      if (currentIndex === -1) currentIndex = 0
+    }
+
+    let nextIndex = currentIndex
+
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      nextIndex = (currentIndex + 1) % tabs.length
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      nextIndex = (currentIndex - 1 + tabs.length) % tabs.length
+    } else if (e.key === 'Home') {
+      nextIndex = 0
+    } else if (e.key === 'End') {
+      nextIndex = tabs.length - 1
+    }
+
+    e.preventDefault()
+    const nextTab = tabs[nextIndex]
+    nextTab?.focus()
+    const nextTabData = layoutNode.tabs[nextIndex]
+    if (nextTabData) {
+      selectTab(nextTabData.id)
+    }
+  }
 </script>
 
 <div 
@@ -164,7 +202,9 @@
   ondrop={handleTabAreaDrop}
   ondragleave={() => dragDropService.clearDragTarget()}
   role="tablist"
+  aria-label="Barre des onglets"
   tabindex="0"
+  onkeydown={handleKeyNavigation}
 >
   <TabScrollContainer bind:this={tabScrollContainer}>
     {#each layoutNode.tabs as tab (tab.id)}

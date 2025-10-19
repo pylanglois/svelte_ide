@@ -4,6 +4,10 @@
   let { position } = $props()
 
   const isLeft = position === 'left'
+  const toolbarLabel = isLeft ? 'Barre d outils gauche' : 'Barre d outils droite'
+  const topGroupLabel = isLeft ? 'Outils superieurs gauche' : 'Outils superieurs droite'
+  const bottomGroupLabel = isLeft ? 'Outils inferieurs gauche' : 'Outils inferieurs droite'
+  const sharedGroupLabel = 'Outils partages bas'
 
   let topTools = $state([])
   let bottomTools = $state([])
@@ -96,14 +100,16 @@
   }
 </script>
 
-<div class="toolbar" class:left={isLeft} class:right={!isLeft}>
-  <div class="tools-section">
+<div class="toolbar" class:left={isLeft} class:right={!isLeft} role="toolbar" aria-label={toolbarLabel}>
+  <div class="tools-section" role="presentation">
     <div
       class="quadrant-group"
       class:drag-over={ideStore.dragOverZone === topTarget}
       ondragover={(e) => handleDragOver(e, topTarget)}
       ondragleave={() => handleDragLeave(topTarget)}
       ondrop={() => handleDrop(topTarget)}
+      role="group"
+      aria-label={topGroupLabel}
     >
       {#each topTools as tool (tool.id)}
         <button
@@ -116,8 +122,11 @@
           draggable="true"
           ondragstart={(e) => handleDragStart(e, tool)}
           ondragend={handleDragEnd}
+          type="button"
+          aria-label={tool.name}
+          aria-pressed={isToolActive(tool)}
         >
-          <i class="icon">{tool.icon}</i>
+          <i class="icon" aria-hidden="true">{tool.icon}</i>
         </button>
       {/each}
     </div>
@@ -127,6 +136,8 @@
       ondragover={(e) => handleDragOver(e, bottomTarget)}
       ondragleave={() => handleDragLeave(bottomTarget)}
       ondrop={() => handleDrop(bottomTarget)}
+      role="group"
+      aria-label={bottomGroupLabel}
     >
       {#each bottomTools as tool (tool.id)}
         <button
@@ -139,15 +150,18 @@
           draggable="true"
           ondragstart={(e) => handleDragStart(e, tool)}
           ondragend={handleDragEnd}
+          type="button"
+          aria-label={tool.name}
+          aria-pressed={isToolActive(tool)}
         >
-          <i class="icon">{tool.icon}</i>
+          <i class="icon" aria-hidden="true">{tool.icon}</i>
         </button>
       {/each}
     </div>
   </div>
 
   {#if isLeft && sharedBottomTools.length > 0}
-    <div class="bottom-section">
+    <div class="bottom-section" role="group" aria-label={sharedGroupLabel}>
       {#each sharedBottomTools as tool (tool.id)}
         <button
           class="tool-button"
@@ -155,8 +169,11 @@
           class:focused={isToolFocused(tool)}
           onclick={() => handleToolClick(tool)}
           title={tool.name}
+          type="button"
+          aria-label={tool.name}
+          aria-pressed={isToolActive(tool)}
         >
-          <i class="icon">{tool.icon}</i>
+          <i class="icon" aria-hidden="true">{tool.icon}</i>
         </button>
       {/each}
     </div>

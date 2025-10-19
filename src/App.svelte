@@ -18,6 +18,7 @@
   const authStore = getAuthStore()
 
   let { externalTools = [] } = $props()
+  const KEYBOARD_RESIZE_STEP = 16
 
   let leftPanelWidth = $state(250)
   let rightPanelWidth = $state(250)
@@ -68,6 +69,21 @@
         document.body.style.cursor = 'ew-resize'
       }
     }
+  }
+
+  function adjustLeftPanel(delta) {
+    const nextWidth = delta < 0 ? leftPanelWidth - KEYBOARD_RESIZE_STEP : leftPanelWidth + KEYBOARD_RESIZE_STEP
+    leftPanelWidth = Math.max(50, nextWidth)
+  }
+
+  function adjustRightPanel(delta) {
+    const nextWidth = delta < 0 ? rightPanelWidth + KEYBOARD_RESIZE_STEP : rightPanelWidth - KEYBOARD_RESIZE_STEP
+    rightPanelWidth = Math.max(50, nextWidth)
+  }
+
+  function adjustBottomPanel(delta) {
+    const nextHeight = delta < 0 ? bottomPanelHeight + KEYBOARD_RESIZE_STEP : bottomPanelHeight - KEYBOARD_RESIZE_STEP
+    bottomPanelHeight = Math.max(50, nextHeight)
   }
 
   (async () => {
@@ -135,13 +151,13 @@
           </div>
           
           {#if hasTopLeft || hasBottomLeft}
-            <ResizeHandle direction="vertical" onResizeStart={createResizeLogic('left')} />
+            <ResizeHandle direction="vertical" onResizeStart={createResizeLogic('left')} onKeyboardAdjust={adjustLeftPanel} />
           {/if}
           
           <MainViewSplit />
           
           {#if hasTopRight || hasBottomRight}
-            <ResizeHandle direction="vertical" onResizeStart={createResizeLogic('right')} />
+            <ResizeHandle direction="vertical" onResizeStart={createResizeLogic('right')} onKeyboardAdjust={adjustRightPanel} />
           {/if}
           
           <div class="side-panel-container right" style:width="{rightPanelWidth}px" style:display="{hasTopRight || hasBottomRight ? 'flex' : 'none'}">
@@ -151,7 +167,7 @@
         </div>
         
         {#if hasBottom}
-          <ResizeHandle direction="horizontal" onResizeStart={createResizeLogic('bottom')} />
+          <ResizeHandle direction="horizontal" onResizeStart={createResizeLogic('bottom')} onKeyboardAdjust={adjustBottomPanel} />
           <div class="bottom-panel-container" style:height="{bottomPanelHeight}px">
             <ToolPanel position="bottom" />
           </div>
@@ -224,11 +240,5 @@
 
   .bottom-panel-container {
     flex-shrink: 0;
-  }
-
-  .welcome-container {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
   }
 </style>
