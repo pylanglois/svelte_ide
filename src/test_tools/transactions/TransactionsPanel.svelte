@@ -1,9 +1,9 @@
 <script>
-  import { Tab } from '@/core/Tab.svelte.js'
-  import { eventBus } from '@/core/EventBusService.svelte.js'
-  import { ideStore } from '@/stores/ideStore.svelte.js'
-  import { transactionsStore, transactionsState } from './transactionsStore.svelte.js'
-  import TransactionsView from './TransactionsView.svelte'
+  import { eventBus } from '@/core/EventBusService.svelte.js';
+  import { Tab } from '@/core/Tab.svelte.js';
+  import { ideStore } from '@/stores/ideStore.svelte.js';
+  import { transactionsState, transactionsStore } from './transactionsStore.svelte.js';
+  import TransactionsView from './TransactionsView.svelte';
 
   let { panelId } = $props()
   const accounts = transactionsStore.getAccounts()
@@ -17,7 +17,7 @@
       const fixedId = 'transactions-tab'
       tab = ideStore.getTabById(fixedId)
       if (!tab) {
-        const newTab = new Tab(fixedId, 'Transactions', TransactionsView, true, '💳', 'tool')
+        const newTab = new Tab(fixedId, 'Transactions', TransactionsView, true, '💳', 'ide')
         newTab.toolId = 'transactions'
         newTab.setDescriptor({
           type: 'transactions-view',

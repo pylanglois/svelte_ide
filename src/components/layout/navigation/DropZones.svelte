@@ -121,6 +121,7 @@
     flex-direction: column;
     background: #1e1e1e;
     position: relative;
+    min-height: 0;
   }
 
   .drop-preview {
