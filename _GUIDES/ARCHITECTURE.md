@@ -10,12 +10,12 @@ L'architecture repose sur une **séparation stricte** entre le **cœur de l'IDE*
     1.  Fournir une structure d'interface (panneaux, barres d'outils, onglets).
     2.  Gérer l'état global de l'application (quel outil est actif, quels onglets sont ouverts, etc.).
     3.  Exposer des services (API) que les outils peuvent consommer (ex: "ajoute un onglet", "envoie une notification").
-    4.  Charger dynamiquement les outils disponibles dans le dossier `src/tools`.
+    4.  Charger dynamiquement les outils disponibles dans le dossier `src/test_tools`.
 
 -   **Les Outils** : Ce sont des modules indépendants et isolés qui implémentent des fonctionnalités spécifiques (par exemple, un explorateur de fichiers, un terminal, une calculatrice).
     1.  Ils sont "ignorants" de l'architecture globale de l'IDE.
     2.  Ils consomment les services fournis par l'IDE pour s'intégrer à l'interface.
-    3.  Un outil peut être ajouté ou supprimé du dossier `src/tools` sans jamais casser le cœur de l'IDE.
+    3.  Un outil peut être ajouté ou supprimé du dossier `src/test_tools` sans jamais casser le cœur de l'IDE.
 
 Cette séparation garantit une **modularité** et une **extensibilité** maximales.
 
@@ -28,7 +28,7 @@ Les responsabilités sont clairement délimitées par la structure des dossiers 
 -   `src/core/` : Le moteur de l'IDE. Contient les classes et services de base.
 -   `src/stores/` : L'état global et réactif de l'application.
 -   `src/components/layout/` : Les composants Svelte qui constituent l'interface de l'IDE.
--   `src/tools/` : Le répertoire où les développeurs créent leurs propres outils.
+-   `src/test_tools/` : Le répertoire où les développeurs créent leurs propres outils.
 -   `App.svelte` : Le composant racine qui assemble l'application.
 
 ---
@@ -85,7 +85,7 @@ Pour la communication découplée entre les outils, ou entre l'IDE et les outils
 Ce dossier contient la logique "métier" de l'IDE lui-même.
 
 -   `Tool.svelte.js` : La classe de base que tous les outils doivent étendre. Elle définit les propriétés fondamentales d'un outil : `id`, `name`, `icon`, `position`, et son état `active`.
--   `ToolManager.svelte.js` : Le service responsable du chargement des outils. Au démarrage de l'application, il scanne le répertoire `src/tools` à la recherche de fichiers `index.svelte.js`, les importe dynamiquement, appelle leur fonction `register` et attribue un `panelId` stable à chaque outil avant de l'enregistrer auprès du `PanelsManager`.
+-   `ToolManager.svelte.js` : Le service responsable du chargement des outils. Au démarrage de l'application, il scanne le répertoire `src/test_tools` à la recherche de fichiers `index.svelte.js`, les importe dynamiquement, appelle leur fonction `register` et attribue un `panelId` stable à chaque outil avant de l'enregistrer auprès du `PanelsManager`.
 -   `Tab.svelte.js` : La classe de base pour les onglets, définissant leurs propriétés (ID, titre, composant à rendre, etc.).
 
 ### 4. `src/components/layout/` : L'Interface de l'IDE
@@ -110,7 +110,7 @@ C'est le composant racine qui assemble toutes les pièces du puzzle.
 
 ## Le Cycle de Vie d'un Outil : Résumé pour le Développeur
 
-1.  **Création** : Le développeur crée un nouveau dossier dans `src/tools/mon-outil/`.
+1.  **Création** : Le développeur crée un nouveau dossier dans `src/test_tools/mon-outil/`.
 2.  **Point d'entrée** : Il crée un fichier `index.svelte.js` qui exporte une fonction `register(toolManager)`.
 3.  **Enregistrement** : Dans cette fonction, il instancie son outil (une classe qui hérite de `Tool`) et l'enregistre via `toolManager.registerTool(monOutil)`.
 4.  **Composant UI** : Il crée un composant Svelte (`MonOutil.svelte`) qui représente l'interface de son outil.

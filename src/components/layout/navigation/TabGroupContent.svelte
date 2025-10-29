@@ -1,11 +1,12 @@
 <script>
   import { layoutService } from '@/core/LayoutService.svelte.js'
   import { dragDropService } from '@/core/DragDropService.svelte.js'
+  import { SCROLL_MODES } from '@/core/ScrollModes.svelte.js'
 
   let { layoutNode } = $props()
 
   let activeTabData = $state(null)
-  let activeTabScrollMode = $state('ide')
+  let activeTabScrollMode = $state(SCROLL_MODES.ide)
 
   $effect(() => {
     const globalFocusedTab = layoutService.globalFocusedTab
@@ -18,7 +19,7 @@
       activeTabData = layoutNode.tabs.find(tab => tab.id === layoutNode.activeTab)
     }
 
-    activeTabScrollMode = activeTabData ? (activeTabData.scrollMode || 'ide') : 'ide'
+    activeTabScrollMode = activeTabData ? (activeTabData.scrollMode || SCROLL_MODES.ide) : SCROLL_MODES.ide
   })
 
   function handleEmptyAreaDragOver(e) {
@@ -68,7 +69,7 @@
       <Component {...activeTabData} />
     {/if}
   {/snippet}
-  {#if activeTabScrollMode === 'tool'}
+  {#if activeTabScrollMode === SCROLL_MODES.tool}
     {@render renderComponent()}
   {:else}
     <div class="tab-scroll-surface">

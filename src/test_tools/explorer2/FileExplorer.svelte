@@ -2,6 +2,7 @@
   import { ideStore } from '@/stores/ideStore.svelte.js'
   import FileViewer from './FileViewer.svelte'
   import { contextMenuService } from '@/core/ContextMenuService.svelte.js'
+  import { SCROLL_MODES } from '@/core/ScrollModes.svelte.js'
 
   let { files = [], toolId } = $props()
   let selectedFileName = $state(null)
@@ -30,7 +31,7 @@
       component: FileViewer,
       icon: getIconForFile(file.name),
       toolId: toolId,
-      scrollMode: 'tool'
+      scrollMode: SCROLL_MODES.tool
     })
 
     ideStore.addLog(`Fichier ${file.name} ouvert`, 'info', 'Explorateur V2')

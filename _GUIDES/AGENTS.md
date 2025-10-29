@@ -4,7 +4,7 @@ Ce document contient les règles fondamentales et non négociables pour ce proje
 
 ## 1. La Règle d'Or : La Séparation des Responsabilités
 
-**LA SÉPARATION STRICTE ENTRE LE CŒUR DE L'IDE (`src/core`, `src/stores`, `src/components/layout`) ET LES OUTILS (`src/tools`) EST LA RÈGLE LA PLUS IMPORTANTE DE CE PROJET.**
+**LA SÉPARATION STRICTE ENTRE LE CŒUR DE L'IDE (`src/core`, `src/stores`, `src/components/layout`) ET LES OUTILS (`src/test_tools`) EST LA RÈGLE LA PLUS IMPORTANTE DE CE PROJET.**
 
 -   L'IDE ne doit **jamais** dépendre d'un outil spécifique.
 -   Les outils ne doivent interagir avec l'IDE **que** via les services exposés (principalement via `ideStore`).
@@ -13,9 +13,9 @@ Ce document contient les règles fondamentales et non négociables pour ce proje
 
 Les détails de l'architecture et les normes de codage sont externalisés dans des fichiers dédiés. Tu dois adhérer à leurs principes.
 
--   **`ARCHITECTURE.md`** : C'est ta source de vérité pour tout ce qui concerne la structure du projet, l'héritage des classes (`Tool`, `Tab`), les services disponibles et le modèle d'interaction entre l'IDE et les outils.
+-   [ARCHITECTURE.md](/_GUIDES/ARCHITECTURE.md) : C'est ta source de vérité pour tout ce qui concerne la structure du projet, l'héritage des classes (`Tool`, `Tab`), les services disponibles et le modèle d'interaction entre l'IDE et les outils.
 
--   **`SVELTE5.md`** : C'est ton guide obligatoire pour toutes les règles de syntaxe Svelte 5, les patterns de réactivité (`$state`, `$effect` vs `$derived`) et les anti-patterns à éviter.
+-   [SVELTE5.md](/_GUIDES/SVELTE5.md) : C'est ton guide obligatoire pour toutes les règles de syntaxe Svelte 5, les patterns de réactivité (`$state`, `$effect` vs `$derived`) et les anti-patterns à éviter.
 
 ## 3. Normes de Codage Générales et Invariables
 

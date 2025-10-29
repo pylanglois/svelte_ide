@@ -5,6 +5,7 @@ import { getAuthStore } from './authStore.svelte.js'
 import { preferencesService } from '@/core/PreferencesService.svelte.js'
 import { panelsManager } from '@/core/PanelsManager.svelte.js'
 import { stateProviderService } from '@/core/StateProviderService.svelte.js'
+import { SCROLL_MODES } from '@/core/ScrollModes.svelte.js'
 
 class IdeStore {
   constructor() {
@@ -214,7 +215,7 @@ class IdeStore {
     }
   }
 
-  openFile({ fileName, content, component, icon = '📄', toolId = null, scrollMode = 'ide' }) {
+  openFile({ fileName, content, component, icon = '📄', toolId = null, scrollMode = SCROLL_MODES.ide }) {
     const tabId = this._generateTabId()
     
     const tab = new Tab(tabId, fileName, component, true, icon, scrollMode)
@@ -333,7 +334,14 @@ class IdeStore {
         for (const tabData of allTabsData) {
           if (tabData.descriptor) {
             
-            const tab = new Tab(tabData.id, tabData.title, null, tabData.closable, tabData.icon, tabData.scrollMode || 'ide')
+            const tab = new Tab(
+              tabData.id,
+              tabData.title,
+              null,
+              tabData.closable,
+              tabData.icon,
+              tabData.scrollMode || SCROLL_MODES.ide
+            )
             tab.setDescriptor(tabData.descriptor)
             
             const hydrateCallback = (component, data = {}) => {

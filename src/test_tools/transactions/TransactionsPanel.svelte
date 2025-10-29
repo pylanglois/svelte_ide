@@ -1,5 +1,6 @@
 <script>
   import { eventBus } from '@/core/EventBusService.svelte.js';
+  import { SCROLL_MODES } from '@/core/ScrollModes.svelte.js';
   import { Tab } from '@/core/Tab.svelte.js';
   import { ideStore } from '@/stores/ideStore.svelte.js';
   import { transactionsState, transactionsStore } from './transactionsStore.svelte.js';
@@ -17,7 +18,7 @@
       const fixedId = 'transactions-tab'
       tab = ideStore.getTabById(fixedId)
       if (!tab) {
-        const newTab = new Tab(fixedId, 'Transactions', TransactionsView, true, '💳', 'ide')
+        const newTab = new Tab(fixedId, 'Transactions', TransactionsView, true, '💳', SCROLL_MODES.ide)
         newTab.toolId = 'transactions'
         newTab.setDescriptor({
           type: 'transactions-view',

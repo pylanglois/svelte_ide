@@ -1,5 +1,7 @@
+import { SCROLL_MODES } from '@/core/ScrollModes.svelte.js'
+
 export class Tab {
-  constructor(id, title, component, closable = true, icon = null, scrollMode = 'ide') {
+  constructor(id, title, component, closable = true, icon = null, scrollMode = SCROLL_MODES.ide) {
     this.id = id
     this.title = title
     this.component = component
@@ -7,7 +9,7 @@ export class Tab {
     this.icon = icon
     this.modified = (false)
     this.scrollMode = scrollMode
-    this.descriptor = null // Descriptor pour la sérialisation/restauration
+    this.descriptor = null
   }
 
   setModified(modified) {

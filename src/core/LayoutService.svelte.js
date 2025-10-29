@@ -1,3 +1,5 @@
+import { SCROLL_MODES } from '@/core/ScrollModes.svelte.js'
+
 export class LayoutService {
   constructor() {
     // Layout simple : un seul tabgroup au début
@@ -60,7 +62,7 @@ export class LayoutService {
           closable: tab.closable,
           icon: tab.icon,
           descriptor: tab.descriptor || null,
-          scrollMode: tab.scrollMode || 'ide'
+          scrollMode: tab.scrollMode || SCROLL_MODES.ide
         }
       }) : [],
       activeTab: layout.activeTab ? layout.activeTab.id : null

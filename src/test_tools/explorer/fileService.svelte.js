@@ -1,3 +1,5 @@
+import { SCROLL_MODES } from '@/core/ScrollModes.svelte.js'
+
 const mockFiles = [
   { name: 'demo1.txt', content: 'Contenu du fichier demo1.txt\nLigne 2\nLigne 3' },
   { name: 'demo2.md', content: '# Fichier Markdown\n\nCeci est un **fichier markdown**.' },
@@ -28,7 +30,8 @@ export function openFileInIDE(fileName, ideStore, FileViewer) {
     content,
     component: FileViewer,
     icon: getFileIcon(fileName),
-    toolId: 'explorer'
+    toolId: 'explorer',
+    scrollMode: SCROLL_MODES.tool
   })
 }
 
