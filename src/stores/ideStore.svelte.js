@@ -6,6 +6,7 @@ import { preferencesService } from '@/core/PreferencesService.svelte.js'
 import { panelsManager } from '@/core/PanelsManager.svelte.js'
 import { stateProviderService } from '@/core/StateProviderService.svelte.js'
 import { SCROLL_MODES } from '@/core/ScrollModes.svelte.js'
+import { namespacedKey } from '@/core/config/appKey.js'
 
 class IdeStore {
   constructor() {
@@ -315,7 +316,7 @@ class IdeStore {
   async restoreUserLayout(user) {
     try {
       const userKey = `${user.provider}-${user.email}`
-      const layoutKey = `ide-layout-${userKey}`
+      const layoutKey = namespacedKey(`ide-layout-${userKey}`)
       const savedData = localStorage.getItem(layoutKey)
       
       if (!savedData) {
@@ -413,7 +414,7 @@ class IdeStore {
     
     try {
       const userKey = `${this.user.provider}-${this.user.email}`
-      const layoutKey = `ide-layout-${userKey}`
+      const layoutKey = namespacedKey(`ide-layout-${userKey}`)
       const serializableLayout = layoutService._createSerializableLayout(layoutService.layout)
       
       if (serializableLayout) {

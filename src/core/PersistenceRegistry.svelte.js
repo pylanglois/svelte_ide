@@ -1,9 +1,30 @@
 import { LocalStoragePersister, MemoryPersister } from '@/core/PersisterInterface.js'
+import { APP_KEY } from '@/core/config/appKey.js'
 
 export class PersistenceRegistry {
     constructor() {
         this.persisters = new Map()
         this.defaultPersisterType = 'localStorage'
+        this.namespacePrefix = null
+        this.setNamespacePrefix(APP_KEY)
+    }
+
+    setNamespacePrefix(prefix) {
+        if (prefix && typeof prefix !== 'string') {
+            throw new Error('Namespace prefix must be a string')
+        }
+        if (this.persisters.size > 0) {
+            console.warn('Namespace prefix set after persisters were created; existing persisters keep their current namespace')
+        }
+        this.namespacePrefix = prefix && prefix.length > 0 ? prefix : null
+    }
+
+    _getMapKey(namespace) {
+        return this.namespacePrefix ? `${this.namespacePrefix}::${namespace}` : namespace
+    }
+
+    _getEffectiveNamespace(namespace) {
+        return this.namespacePrefix ? `${this.namespacePrefix}:${namespace}` : namespace
     }
 
     registerPersister(namespace, persister) {
@@ -14,22 +35,24 @@ export class PersistenceRegistry {
             throw new Error('Persister must implement the PersisterInterface')
         }
         
-        this.persisters.set(namespace, persister)
+        const mapKey = this._getMapKey(namespace)
+        this.persisters.set(mapKey, persister)
         return persister
     }
 
     createPersister(namespace, type = this.defaultPersisterType) {
-        if (this.persisters.has(namespace)) {
-            return this.persisters.get(namespace)
+        const mapKey = this._getMapKey(namespace)
+        if (this.persisters.has(mapKey)) {
+            return this.persisters.get(mapKey)
         }
 
         let persister
         switch (type) {
             case 'localStorage':
-                persister = new LocalStoragePersister(namespace)
+                persister = new LocalStoragePersister(this._getEffectiveNamespace(namespace))
                 break
             case 'memory':
-                persister = new MemoryPersister(namespace)
+                persister = new MemoryPersister(this._getEffectiveNamespace(namespace))
                 break
             default:
                 throw new Error(`Unknown persister type: ${type}`)
@@ -40,14 +63,16 @@ export class PersistenceRegistry {
     }
 
     getPersister(namespace) {
-        if (!this.persisters.has(namespace)) {
+        const mapKey = this._getMapKey(namespace)
+        if (!this.persisters.has(mapKey)) {
             return this.createPersister(namespace)
         }
-        return this.persisters.get(namespace)
+        return this.persisters.get(mapKey)
     }
 
     removePersister(namespace) {
-        return this.persisters.delete(namespace)
+        const mapKey = this._getMapKey(namespace)
+        return this.persisters.delete(mapKey)
     }
 
     clearAll() {

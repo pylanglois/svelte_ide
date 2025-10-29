@@ -1,3 +1,7 @@
+import { namespacedKey } from '@/core/config/appKey.js'
+
+const STORAGE_KEY = namespacedKey('auth-tokens')
+
 export class TokenManager {
   constructor() {
     this.accessToken = null
@@ -12,7 +16,7 @@ export class TokenManager {
 
   loadFromStorage() {
     try {
-      const stored = localStorage.getItem('auth_tokens')
+      const stored = localStorage.getItem(STORAGE_KEY)
       if (stored) {
         const data = JSON.parse(stored)
         if (data.expiry && new Date(data.expiry) > new Date()) {
@@ -37,12 +41,12 @@ export class TokenManager {
         expiry: this.tokenExpiry.toISOString(),
         userInfo: this.userInfo
       }
-      localStorage.setItem('auth_tokens', JSON.stringify(data))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     }
   }
 
   clearStorage() {
-    localStorage.removeItem('auth_tokens')
+    localStorage.removeItem(STORAGE_KEY)
     this.accessToken = null
     this.refreshToken = null
     this.tokenExpiry = null
