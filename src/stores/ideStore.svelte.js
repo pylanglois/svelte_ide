@@ -222,6 +222,7 @@ class IdeStore {
 
   addTab(tab) {
     layoutService.addTab(tab)
+    eventBus.publish('tabs:added', { tab })
     eventBus.publish('tabs:activated', layoutService.activeTab)
     this.saveUserLayout()
   }

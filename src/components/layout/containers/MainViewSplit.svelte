@@ -1,21 +1,12 @@
 <script>
-  import { layoutService } from '@/core/LayoutService.svelte.js'
-  import { ideStore } from '@/stores/ideStore.svelte.js'
-  import LayoutContainer from './LayoutContainer.svelte'
-
-  // TODO: La sauvegarde automatique sera gérée par ideStore
-  // $effect(() => {
-  //   if (layoutService.layout) {
-  //     layoutService._triggerAutoSave()
-  //   }
-  // })
+  import { layoutService } from '@/core/LayoutService.svelte.js';
+  import LayoutContainer from './LayoutContainer.svelte';
 </script>
 
 <div class="main-view-split">
   {#if layoutService.tabs.length === 0}
-    <!-- Afficher un simple hello si aucun tab n'est ouvert -->
     <div class="welcome-content">
-      <h1>hello</h1>
+      <h1>bonjour!</h1>
     </div>
   {:else}
     <!-- Rendu du layout avec support futur pour les splits -->

@@ -8,6 +8,9 @@ class ToolManagerSvelte {
     this._capturePanelStates = this._capturePanelStates.bind(this)
     this._handleTabActivated = this._handleTabActivated.bind(this)
     this._unsubscribeTabActivated = eventBus.subscribe('tabs:activated', this._handleTabActivated)
+    this._unsubscribeTabFocusChanged = eventBus.subscribe('tabs:focus-changed', ({ tab }) => {
+      this._handleTabActivated(tab)
+    })
     panelsManager.addChangeCallback(this._capturePanelStates)
   }
 

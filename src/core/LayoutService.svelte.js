@@ -592,31 +592,39 @@ export class LayoutService {
   setGlobalFocus(tabId) {
     // Vérifier que le tab existe
     const tab = this.getTabById(tabId)
-    if (tab) {
-      this.globalFocusedTab = tabId
-      // S'assurer que le tab est aussi actif dans son groupe
-      const group = this._findGroupContainingTab(this.layout, tabId)
-      if (group) {
-        group.activeTab = tabId
-      }
-      this._triggerAutoSave()
-      return true
+    if (!tab) {
+      return false
     }
-    return false
+
+    if (this.globalFocusedTab === tabId) {
+      return false
+    }
+
+    this.globalFocusedTab = tabId
+    // S'assurer que le tab est aussi actif dans son groupe
+    const group = this._findGroupContainingTab(this.layout, tabId)
+    if (group) {
+      group.activeTab = tabId
+    }
+    this._triggerAutoSave()
+    return true
   }
 
   restoreGlobalFocus(tabId) {
     // Méthode pour restaurer le focus sans trigger de sauvegarde (utilisée lors de la restauration)
     const tab = this.getTabById(tabId)
-    if (tab) {
-      this.globalFocusedTab = tabId
-      const group = this._findGroupContainingTab(this.layout, tabId)
-      if (group) {
-        group.activeTab = tabId
-      }
-      return true
+    if (!tab) {
+      return false
     }
-    return false
+    if (this.globalFocusedTab === tabId) {
+      return false
+    }
+    this.globalFocusedTab = tabId
+    const group = this._findGroupContainingTab(this.layout, tabId)
+    if (group) {
+      group.activeTab = tabId
+    }
+    return true
   }
 
   clearGlobalFocus() {

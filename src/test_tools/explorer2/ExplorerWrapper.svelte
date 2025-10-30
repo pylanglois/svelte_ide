@@ -1,17 +1,10 @@
 <script>
   import FileExplorer from './FileExplorer.svelte'
+  import { getFileListV2 } from './fileService.svelte.js'
 
   let { toolId } = $props()
 
-  const files = [
-    { name: 'POuet', type: 'folder' },
-    { name: 'Pommes', type: 'folder' },
-    { name: 'Nnana', type: 'folder' },
-    { name: 'dru.txt', type: 'file', content: 'allo bonjour' },
-    { name: 'prois.md', type: 'file', content: 'allo bonjour' },
-    { name: 'canna.js', type: 'file', content: 'allo bonjour' },
-    { name: 'ououou.html', type: 'file', content: 'allo bonjour' },
-  ]
+  const files = getFileListV2()
 </script>
 
 <FileExplorer {files} {toolId} />

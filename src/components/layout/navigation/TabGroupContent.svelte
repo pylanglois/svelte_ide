@@ -1,6 +1,7 @@
 <script>
   import { layoutService } from '@/core/LayoutService.svelte.js'
   import { dragDropService } from '@/core/DragDropService.svelte.js'
+  import { eventBus } from '@/core/EventBusService.svelte.js'
   import { SCROLL_MODES } from '@/core/ScrollModes.svelte.js'
 
   let { layoutNode } = $props()
@@ -20,6 +21,7 @@
     }
 
     activeTabScrollMode = activeTabData ? (activeTabData.scrollMode || SCROLL_MODES.ide) : SCROLL_MODES.ide
+
   })
 
   function handleEmptyAreaDragOver(e) {
@@ -54,6 +56,14 @@
 
     dragDropService.endDrag()
   }
+
+  function focusTabContent(tab) {
+    if (!tab) return
+    const changed = layoutService.setGlobalFocus(tab.id)
+    if (changed) {
+      eventBus.publish('tabs:focus-changed', { tab })
+    }
+  }
 </script>
 
 {#if activeTabData && activeTabData.component}
@@ -69,13 +79,19 @@
       <Component {...activeTabData} />
     {/if}
   {/snippet}
-  {#if activeTabScrollMode === SCROLL_MODES.tool}
-    {@render renderComponent()}
-  {:else}
-    <div class="tab-scroll-surface">
+  <div
+    class="tab-content-root"
+    onfocusin={() => focusTabContent(activeTabData)}
+    onpointerdown={() => focusTabContent(activeTabData)}
+  >
+    {#if activeTabScrollMode === SCROLL_MODES.tool}
       {@render renderComponent()}
-    </div>
-  {/if}
+    {:else}
+      <div class="tab-scroll-surface">
+        {@render renderComponent()}
+      </div>
+    {/if}
+  </div>
 {:else if activeTabData}
   <div class="placeholder">
     <h3>{activeTabData.title}</h3>
@@ -100,12 +116,19 @@
 {/if}
 
 <style>
-  .tab-scroll-surface {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: auto;
-    min-height: 0;
+.tab-content-root {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tab-scroll-surface {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  min-height: 0;
     height: 100%;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.25) transparent;

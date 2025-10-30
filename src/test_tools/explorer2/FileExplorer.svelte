@@ -2,21 +2,26 @@
   import { ideStore } from '@/stores/ideStore.svelte.js'
   import FileViewer from './FileViewer.svelte'
   import { contextMenuService } from '@/core/ContextMenuService.svelte.js'
-  import { SCROLL_MODES } from '@/core/ScrollModes.svelte.js'
+  import { getFileListV2, openFileInIDEv2 } from './fileService.svelte.js'
 
-  let { files = [], toolId } = $props()
+  let { files = getFileListV2(), toolId } = $props()
   let selectedFileName = $state(null)
 
-  function getIconForFile(fileName) {
-    const extension = fileName.split('.').pop()
-    switch (extension) {
-      case 'js': return 'JS'
-      case 'html': return '🌐'
-      case 'css': return '🎨'
-      case 'json': return '{}'
-      case 'md': return '📘'
-      default: return '📄'
+  function getIconForEntry(entry) {
+    if (entry.icon) return entry.icon
+    if (entry.type === 'folder') return '📁'
+    const extension = entry.name.split('.').pop()
+    const icons = {
+      js: 'JS',
+      html: '🌐',
+      css: '🎨',
+      json: '{}',
+      md: '📘',
+      csv: '🗂️',
+      yml: '⚙️',
+      svg: '🎨'
     }
+    return icons[extension] || '📄'
   }
 
   function handleFileClick(file) {
@@ -25,14 +30,7 @@
   }
 
   function handleFileDoubleClick(file) {
-    ideStore.openFile({
-      fileName: `V2: ${file.name}`,
-      content: file.content || 'Contenu par défaut V2',
-      component: FileViewer,
-      icon: getIconForFile(file.name),
-      toolId: toolId,
-      scrollMode: SCROLL_MODES.tool
-    })
+    openFileInIDEv2(file.name, ideStore, FileViewer, toolId)
 
     ideStore.addLog(`Fichier ${file.name} ouvert`, 'info', 'Explorateur V2')
 
@@ -140,7 +138,7 @@
             role="treeitem"
             aria-selected={selectedFileName === item.name}
           >
-            <span class="icon" aria-hidden="true">📁</span>
+            <span class="icon" aria-hidden="true">{getIconForEntry(item)}</span>
             <span class="name">{item.name}</span>
           </button>
         {:else}
@@ -156,7 +154,7 @@
             role="treeitem"
             aria-selected={selectedFileName === item.name}
           >
-            <span class="icon" aria-hidden="true">{getIconForFile(item.name)}</span>
+            <span class="icon" aria-hidden="true">{getIconForEntry(item)}</span>
             <span class="name">{item.name}</span>
           </button>
         {/if}
