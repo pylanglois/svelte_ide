@@ -8,7 +8,6 @@ export class ConsoleTool extends Tool {
   }
 
   initialize() {
-    this.setVisibilityMode('always')
     this.setComponent(Console)
   }
 }
@@ -19,7 +18,6 @@ export class NotificationsTool extends Tool {
   }
 
   initialize() {
-    this.setVisibilityMode('always')
     this.setComponent(Notifications)
   }
 }

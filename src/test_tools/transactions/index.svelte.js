@@ -8,7 +8,6 @@ class TransactionsTool extends Tool {
   }
 
   initialize() {
-    this.setVisibilityMode('always')
     this.setComponent(TransactionsPanel)
   }
 }

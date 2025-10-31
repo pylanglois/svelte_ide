@@ -1,7 +1,6 @@
 import { Tool } from '@/core/Tool.svelte.js'
 import ExplorerWrapper from './ExplorerWrapper.svelte'
 import MetadataPanel from './MetadataPanel.svelte'
-import FileViewer from './FileViewer.svelte'
 import './Explorer2RestorationService.svelte.js'
 
 class MetadataV2Tool extends Tool {
@@ -10,12 +9,6 @@ class MetadataV2Tool extends Tool {
   }
 
   initialize() {
-    this.setVisibilityMode('contextual')
-    this.setContextMatcher((tab) => {
-      if (!tab) return false
-      if (tab.component === FileViewer) return true
-      return tab.descriptor?.toolId === 'explorer2' || tab.toolId === 'explorer2'
-    })
     this.setComponent(MetadataPanel)
   }
 
@@ -27,7 +20,6 @@ class MetadataV2Tool extends Tool {
 export class Explorer2Tool extends Tool {
   constructor(id, position) {
     super('Explorateur V2', '🗂️', position, id)
-    this.setVisibilityMode('always')
     this.setComponent(ExplorerWrapper, { toolId: id })
   }
 }
@@ -38,7 +30,6 @@ class Explorer2MainTool extends Tool {
   }
 
   initialize() {
-    this.setVisibilityMode('always')
     this.setComponent(ExplorerWrapper, { toolId: this.id })
   }
 

@@ -79,17 +79,15 @@ class IdeStore {
   }
 
   _updateToolLists() {
-    const isVisible = (tool) => tool.visible !== false
-    this.topLeftTools = this.tools.filter(t => t.position === 'topLeft' && isVisible(t))
-    this.bottomLeftTools = this.tools.filter(t => t.position === 'bottomLeft' && isVisible(t))
-    this.topRightTools = this.tools.filter(t => t.position === 'topRight' && isVisible(t))
-    this.bottomRightTools = this.tools.filter(t => t.position === 'bottomRight' && isVisible(t))
-    this.bottomTools = this.tools.filter(t => t.position === 'bottom' && isVisible(t))
+    this.topLeftTools = this.tools.filter(t => t.position === 'topLeft')
+    this.bottomLeftTools = this.tools.filter(t => t.position === 'bottomLeft')
+    this.topRightTools = this.tools.filter(t => t.position === 'topRight')
+    this.bottomRightTools = this.tools.filter(t => t.position === 'bottomRight')
+    this.bottomTools = this.tools.filter(t => t.position === 'bottom')
   }
 
   addTool(tool) {
     if (!this.tools.find(t => t.id === tool.id)) {
-      tool.visible = tool.visible !== false
       this.tools.push(tool)
       this._updateToolLists()
     }
@@ -119,16 +117,6 @@ class IdeStore {
 
   getToolById(toolId) {
     return this.tools.find(tool => tool.id === toolId) || null
-  }
-
-  setToolVisibility(toolId, visible) {
-    const tool = this.getToolById(toolId)
-    if (!tool) return false
-    const nextVisible = !!visible
-    if (tool.visible === nextVisible) return false
-    tool.visible = nextVisible
-    this._updateToolLists()
-    return true
   }
 
   addConsoleTab(title) {

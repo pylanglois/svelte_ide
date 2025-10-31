@@ -1,6 +1,6 @@
 <script>
-  import { getAuthStore } from '@/stores/authStore.svelte.js'
-  import { ideStore } from '@/stores/ideStore.svelte.js'
+  import { getAuthStore } from '@/stores/authStore.svelte.js';
+  import { ideStore } from '@/stores/ideStore.svelte.js';
 
   const authStore = getAuthStore()
   
@@ -116,7 +116,7 @@
     >
       <span class="user-avatar">
         {#if getUserAvatarImage(authStore.currentUser)}
-          <img src={getUserAvatarImage(authStore.currentUser)} alt={`Avatar de ${getUserDisplayName(authStore.currentUser)}`} />
+          <img src={getUserAvatarImage(authStore.currentUser)} alt={`[${getUserDisplayName(authStore.currentUser)[0]}]`} />
         {:else}
           {getUserAvatar(authStore.currentUser)}
         {/if}

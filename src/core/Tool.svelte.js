@@ -7,11 +7,6 @@ export class Tool {
     this.active = $state(false)
     this.component = null
     this.componentProps = {}
-    this.visibilityMode = 'contextual'
-    this.visible = true
-    this.contextMatcher = null
-    this._autoHidden = false
-    this._lastActiveState = false
   }
 
   static generate_id(source) {
@@ -39,45 +34,6 @@ export class Tool {
 
   deactivate() {
     this.active = false
-  }
-
-  setVisibilityMode(mode) {
-    this.visibilityMode = mode === 'always' ? 'always' : 'contextual'
-  }
-
-  setContextMatcher(matcher) {
-    this.contextMatcher = typeof matcher === 'function' ? matcher : null
-  }
-
-  isContextual() {
-    return this.visibilityMode !== 'always'
-  }
-
-  isTabCompatible(tab) {
-    if (!this.isContextual()) {
-      return true
-    }
-
-    const matcher = this.contextMatcher ?? this._defaultContextMatcher.bind(this)
-    try {
-      return !!matcher(tab, this)
-    } catch (error) {
-      console.warn(`Tool ${this.id}: context matcher error`, error)
-      return false
-    }
-  }
-
-  _defaultContextMatcher(tab) {
-    if (!tab) {
-      return false
-    }
-    if (tab.toolId && tab.toolId === this.id) {
-      return true
-    }
-    if (tab.descriptor?.toolId && tab.descriptor.toolId === this.id) {
-      return true
-    }
-    return false
   }
 
   initialize() {
