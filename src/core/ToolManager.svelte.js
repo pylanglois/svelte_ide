@@ -1,10 +1,12 @@
 import { ideStore } from '@/stores/ideStore.svelte.js'
 import { panelsManager } from '@/core/PanelsManager.svelte.js'
+import { focusDisplayCoordinator } from '@/core/FocusDisplayCoordinator.svelte.js'
 import { toolFocusCoordinator } from '@/core/ToolFocusCoordinator.svelte.js'
 
 class ToolManagerSvelte {
   constructor() {
     this.registeredTools = new Map()
+    focusDisplayCoordinator.setPanelsManagerAccessor(() => ideStore.panelsManager ?? panelsManager)
     toolFocusCoordinator.setFocusHandler((toolId, tab, options = {}) => {
       this._handleFocusedTab(toolId, tab, options)
     })
@@ -154,25 +156,11 @@ class ToolManagerSvelte {
 
   _handleFocusedTab(toolId, tab, { isPrimary = false } = {}) {
     const tool = this.getTool(toolId)
-    if (!tool || !tool.panelId) {
+    if (!tool) {
       return
     }
 
-    const manager = ideStore.panelsManager ?? panelsManager
-    if (!manager) {
-      return
-    }
-
-    const panel = manager.getPanel ? manager.getPanel(tool.panelId) : null
-    if (!panel) {
-      return
-    }
-
-    if (!panel.isActive) {
-      const component = panel.component ?? tool.component
-      manager.activatePanel(panel.id, component, { focus: false })
-    }
-    // Ne pas forcer le focus visuel : on laisse le panneau actif mais pas focalisé.
+    focusDisplayCoordinator.handleFocus(tool, tab, { isPrimary })
   }
 }
 
