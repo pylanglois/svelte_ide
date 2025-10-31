@@ -1,8 +1,13 @@
 import { ideStore } from '@/stores/ideStore.svelte.js'
+import { panelsManager } from '@/core/PanelsManager.svelte.js'
+import { toolFocusCoordinator } from '@/core/ToolFocusCoordinator.svelte.js'
 
 class ToolManagerSvelte {
   constructor() {
     this.registeredTools = new Map()
+    toolFocusCoordinator.setFocusHandler((toolId, tab) => {
+      this._handleFocusedTab(toolId, tab)
+    })
   }
 
   registerTool(tool) {
@@ -14,6 +19,7 @@ class ToolManagerSvelte {
     tool.initialize()
     this._registerTool(tool)
     ideStore.addTool(tool)
+    toolFocusCoordinator.registerTool(tool)
   }
 
   _registerTool(tool) {
@@ -50,6 +56,7 @@ class ToolManagerSvelte {
     ideStore.removeTool(toolId)
     this.registeredTools.delete(toolId)
     ideStore.addLog(`Tool ${tool.name} unregistered`, 'info')
+    toolFocusCoordinator.unregisterTool(toolId)
   }
 
   async registerExternalTools(entries) {
@@ -136,6 +143,36 @@ class ToolManagerSvelte {
     } catch (error) {
       console.error('Failed to load tools:', error)
     }
+  }
+
+  getTool(toolId) {
+    if (!toolId) {
+      return null
+    }
+    return this.registeredTools.get(toolId) || null
+  }
+
+  _handleFocusedTab(toolId, tab) {
+    const tool = this.getTool(toolId)
+    if (!tool || !tool.panelId) {
+      return
+    }
+
+    const manager = ideStore.panelsManager ?? panelsManager
+    if (!manager) {
+      return
+    }
+
+    const panel = manager.getPanel ? manager.getPanel(tool.panelId) : null
+    if (!panel) {
+      return
+    }
+
+    if (!panel.isActive) {
+      const component = panel.component ?? tool.component
+      manager.activatePanel(panel.id, component)
+    }
+    manager.focusPanel(panel.id)
   }
 }
 

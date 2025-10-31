@@ -61,11 +61,11 @@
   function focusTabContent(tab) {
     if (!tab) return
     const changed = layoutService.setGlobalFocus(tab.id)
+    if (changed && panelsManager) {
+      panelsManager.clearFocus()
+    }
     if (changed) {
       eventBus.publish('tabs:focus-changed', { tab })
-    }
-    if (panelsManager) {
-      panelsManager.clearFocus()
     }
   }
 </script>
