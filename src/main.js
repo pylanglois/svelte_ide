@@ -2,7 +2,17 @@ import { mount } from 'svelte'
 import App from '@/App.svelte'
 import { ideStore } from '@/stores/ideStore.svelte.js'
 
-const app = mount(App, { target: document.getElementById('app') })
+let externalTools = []
+
+if (import.meta.env.DEV) {
+  const module = await import('@/test_tools/devExternalTools.js')
+  externalTools = module.default ?? []
+}
+
+const app = mount(App, {
+  target: document.getElementById('app'),
+  props: { externalTools }
+})
 
 // Ajouter quelques notifications de démonstration
 setTimeout(() => {

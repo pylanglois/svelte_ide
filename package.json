@@ -1,12 +1,12 @@
 {
   "name": "svelte-ide",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node scripts/sync-tool-alias.mjs && vite",
-    "build": "node scripts/sync-tool-alias.mjs && vite build",
-    "preview": "node scripts/sync-tool-alias.mjs && vite preview"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^4.0.0",

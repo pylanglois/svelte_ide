@@ -100,7 +100,6 @@
     toolManager.registerTool(new NotificationsTool())
 
     ideStore.setStatusMessage('Chargement des outils externes...')
-    await toolManager.loadTools()
     await toolManager.registerExternalTools(externalTools)
     
     if (authStore.isAuthenticated && authStore.currentUser) {

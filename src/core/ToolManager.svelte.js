@@ -103,53 +103,6 @@ class ToolManagerSvelte {
     }
   }
 
-  async loadTools() {
-    try {
-      const rawRoot = import.meta.env.VITE_TOOL_ROOT
-      if (!rawRoot) {
-        return
-      }
-      let normalizedRoot = rawRoot.trim()
-      if (!normalizedRoot) {
-        return
-      }
-      if (normalizedRoot.startsWith('./')) {
-        normalizedRoot = normalizedRoot.slice(2)
-      }
-      if (normalizedRoot.startsWith('src/')) {
-        normalizedRoot = normalizedRoot.slice(4)
-      }
-      if (!normalizedRoot.startsWith('../')) {
-        normalizedRoot = `../${normalizedRoot}`
-      }
-      if (!normalizedRoot.endsWith('/')) {
-        normalizedRoot = `${normalizedRoot}/`
-      }
-
-      const toolModules = import.meta.glob('../**/index.svelte.js')
-
-      for (const path in toolModules) {
-        if (!path.startsWith(normalizedRoot)) {
-          continue
-        }
-        try {
-          const module = await toolModules[path]()
-          if (module.default) {
-            if (typeof module.default.register === 'function') {
-              module.default.register(this)
-            } else if (module.default.id && module.default.name) {
-              this.registerTool(module.default)
-            }
-          }
-        } catch (error) {
-          console.error(`Failed to load tool from ${path}:`, error)
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load tools:', error)
-    }
-  }
-
   getTool(toolId) {
     if (!toolId) {
       return null

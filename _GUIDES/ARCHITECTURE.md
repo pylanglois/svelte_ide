@@ -10,7 +10,7 @@ L'architecture repose sur une **séparation stricte** entre le **cœur de l'IDE*
     1.  Fournir une structure d'interface (panneaux, barres d'outils, onglets).
     2.  Gérer l'état global de l'application (quel outil est actif, quels onglets sont ouverts, etc.).
     3.  Exposer des services (API) que les outils peuvent consommer (ex: "ajoute un onglet", "envoie une notification").
-    4.  Enregistrer les outils fournis au démarrage (prop `externalTools`, configuration `VITE_TOOL_ROOT`, etc.) via le `ToolManager`.
+    4.  Enregistrer les outils fournis au démarrage (prop `externalTools`, injection du point d'entrée applicatif, etc.) via le `ToolManager`.
 
 -   **Les Outils** : Ce sont des modules indépendants et isolés qui implémentent des fonctionnalités spécifiques (par exemple, un explorateur de fichiers, un terminal, une calculatrice).
     1.  Ils sont "ignorants" de l'architecture globale de l'IDE.
@@ -29,7 +29,7 @@ Les responsabilités sont clairement délimitées par la structure des dossiers 
     -   Sous-dossier `layout/` : Registre des zones et configuration du chrome.
 -   `src/stores/` : L'état global et réactif de l'application.
 -   `src/components/layout/` : Les composants Svelte qui constituent l'interface de l'IDE.
--   `src/test_tools/` : Le répertoire où les développeurs créent leurs propres outils.
+-   `src/test_tools/` : Le répertoire où les développeurs créent leurs propres outils pour le développement local (agrégés via `src/test_tools/devExternalTools.js`).
 -   `App.svelte` : Le composant racine qui assemble l'application.
 
 ---
@@ -87,7 +87,7 @@ Pour la communication découplée entre les outils, ou entre l'IDE et les outils
 Ce dossier contient la logique "métier" de l'IDE lui-même.
 
 -   `Tool.svelte.js` : La classe de base que tous les outils doivent étendre. Elle définit les propriétés fondamentales d'un outil : `id`, `name`, `icon`, `position`, et son état `active`.
--   `ToolManager.svelte.js` : Le service responsable du chargement des outils. Au démarrage de l'application, il enregistre l'ensemble des outils fournis (prop `externalTools`, modules trouvés via `VITE_TOOL_ROOT`, etc.), appelle leur fonction `register` et attribue un `panelId` stable à chaque outil avant de l'enregistrer auprès du `PanelsManager`.
+-   `ToolManager.svelte.js` : Le service responsable du chargement des outils. Au démarrage de l'application, il enregistre l'ensemble des outils fournis (prop `externalTools`, outils injectés par le point d'entrée), appelle leur fonction `register` et attribue un `panelId` stable à chaque outil avant de l'enregistrer auprès du `PanelsManager`.
 -   `Tab.svelte.js` : La classe de base pour les onglets, définissant leurs propriétés (ID, titre, composant à rendre, etc.).
 -   `GenericLayoutService.svelte.js` : Gestion centralisée des zones du chrome (toolbars, panels) et de leur persistance.
 -   `DragDropService.svelte.js` : Service unique gérant le drag & drop entre tabgroups (prévisualisations, zones de drop).
@@ -107,7 +107,7 @@ Ces composants ne contiennent aucune logique métier. Ils sont uniquement respon
 
 C'est le composant racine qui assemble toutes les pièces du puzzle.
 
--   **Initialisation** : Au montage, il instancie les outils système (console, notifications, etc.), les enregistre via `toolManager`, puis lance le chargement des outils externes (prop `externalTools`, racine `VITE_TOOL_ROOT`).
+-   **Initialisation** : Au montage, il instancie les outils système (console, notifications, etc.), les enregistre via `toolManager`, puis charge les outils externes fournis via la prop `externalTools`.
 -   **Assemblage de l'interface** : Il intègre tous les composants `layout` (`TitleBar`, `Toolbar`, `MainView`, etc.) pour former l'application complète.
 -   **Logique de l'interface globale** : Il gère des interactions qui affectent toute l'interface, comme le redimensionnement des panneaux.
 
@@ -133,7 +133,7 @@ Le cœur installe un ensemble réduit d'outils "système" (Console, Notification
 5.  **Liaison** : Dans la méthode `initialize()` de sa classe d'outil, il lie le composant à l'outil avec `this.setComponent(MonOutil)`.
 6.  **Interaction** : Depuis son composant ou sa classe, il peut appeler les méthodes de `ideStore` (ex: `ideStore.addTab(...)`) pour interagir avec le reste de l'IDE.
 
-En suivant ce modèle, l'outil est automatiquement découvert et intégré à l'IDE au démarrage, tout en restant complètement découplé du code du cœur.
+En suivant ce modèle, l'outil peut être injecté via la prop `externalTools` (comme le fait le point d'entrée de développement) tout en restant complètement découplé du code du cœur.
 
 > ℹ️ Les projets consommateurs peuvent également injecter des outils dynamiquement (ex: `mount(App, { props: { externalTools }})`). L'IDE ne fait aucune hypothèse sur leur provenance tant qu'ils respectent l'API `Tool`.
 
