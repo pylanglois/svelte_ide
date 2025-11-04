@@ -2,12 +2,24 @@
   import AuthUserMenu from './AuthUserMenu.svelte'
   import AppLogo from './AppLogo.svelte'
   import MainMenu from './MainMenu.svelte'
+  import { getAuthStore } from '@/stores/authStore.svelte.js'
+
+  const authStore = getAuthStore()
+  let isAuthenticated = $state(false)
+
+  $effect(() => {
+    isAuthenticated = authStore.isAuthenticated
+  })
 </script>
 
 <div class="title-bar">
   <div class="left-area">
-    <AppLogo size={26} class="logo" />
-    <MainMenu />
+    <div class="logo-wrapper">
+      <AppLogo size={26} />
+    </div>
+    {#if isAuthenticated}
+      <MainMenu />
+    {/if}
   </div>
 
   <AuthUserMenu />
@@ -34,7 +46,7 @@
     gap: 12px;
   }
   
-  .logo {
+  .logo-wrapper {
     flex-shrink: 0;
     display: block;
   }
