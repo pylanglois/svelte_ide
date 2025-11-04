@@ -7,10 +7,102 @@ export class GoogleProvider extends AuthProvider {
     this.tokenUrl = 'https://oauth2.googleapis.com/token'
     this.userInfoUrl = 'https://openidconnect.googleapis.com/v1/userinfo'
     this.scope = 'openid profile email'
+    this.useBackendExchange = false
+    this.backendTokenUrl = null
+    this.backendRefreshUrl = null
+    this.backendHeaders = {}
+    this.backendCredentials = 'include'
+    this.allowInsecureClientSecret = false
   }
 
   requiredConfigKeys() {
-    return ['clientId', 'clientSecret']
+    return ['clientId']
+  }
+
+  validateConfig() {
+    super.validateConfig()
+
+    if (!this.isConfigured) {
+      return
+    }
+
+    const secret =
+      typeof this.config.clientSecret === 'string' ? this.config.clientSecret.trim() : ''
+
+    const allowSecretFlag =
+      this.config.allowInsecureClientSecret === true ||
+      this.config.allowInsecureClientSecret === 'true' ||
+      this.config.allowInsecureClientSecret === '1'
+
+    console.log('GoogleProvider.validateConfig', {
+      receivedClientSecret: !!this.config.clientSecret,
+      trimmedSecretLength: secret.length,
+      allowSecretFlag
+    })
+
+    this.allowInsecureClientSecret = allowSecretFlag && !!secret
+
+    if (secret && !this.allowInsecureClientSecret) {
+      throw new Error(
+        'GoogleProvider: clientSecret detected but allowInsecureClientSecret is not enabled. Remove the secret or enable a backend exchange.'
+      )
+    }
+
+    if (this.allowInsecureClientSecret) {
+      this.config.clientSecret = secret
+    } else {
+      delete this.config.clientSecret
+    }
+
+    console.log('GoogleProvider.validateConfig status', {
+      allowInsecureClientSecret: this.allowInsecureClientSecret,
+      storedSecretLength: this.config.clientSecret ? this.config.clientSecret.length : 0
+    })
+
+    if (this.allowInsecureClientSecret && import.meta.env && import.meta.env.PROD) {
+      console.warn(
+        'GoogleProvider: allowInsecureClientSecret enabled in production build. This exposes the client secret; consider switching to the backend exchange.'
+      )
+    }
+
+    const wantsBackend =
+      this.config.useBackendExchange === true ||
+      (typeof this.config.useBackendExchange === 'string' &&
+        (this.config.useBackendExchange.toLowerCase() === 'true' || this.config.useBackendExchange === '1'))
+
+    const backendTokenUrl =
+      typeof this.config.backendTokenUrl === 'string'
+        ? this.config.backendTokenUrl.trim()
+        : null
+    const backendRefreshUrl =
+      typeof this.config.backendRefreshUrl === 'string'
+        ? this.config.backendRefreshUrl.trim()
+        : null
+
+    this.useBackendExchange = wantsBackend || !!backendTokenUrl || !!backendRefreshUrl
+    this.backendTokenUrl = backendTokenUrl || null
+    this.backendRefreshUrl = backendRefreshUrl || backendTokenUrl || null
+
+    if (this.useBackendExchange && !this.backendTokenUrl) {
+      this.isConfigured = false
+      throw new Error('GoogleProvider: backend exchange enabled but backendTokenUrl is missing')
+    }
+
+    if (this.useBackendExchange) {
+      const headers =
+        this.config.backendHeaders && typeof this.config.backendHeaders === 'object'
+          ? this.config.backendHeaders
+          : null
+      this.backendHeaders = headers ? { ...headers } : {}
+
+      if (this.config.backendCredentials !== undefined) {
+        if (typeof this.config.backendCredentials === 'boolean') {
+          this.backendCredentials = this.config.backendCredentials ? 'include' : 'omit'
+        } else if (typeof this.config.backendCredentials === 'string') {
+          this.backendCredentials = this.config.backendCredentials
+        }
+      }
+    }
   }
 
   async initialize() {
@@ -134,16 +226,61 @@ export class GoogleProvider extends AuthProvider {
   }
 
   async exchangeCodeForTokens(code, codeVerifier) {
+    if (this.useBackendExchange) {
+      const response = await fetch(this.backendTokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.backendHeaders
+        },
+        credentials: this.backendCredentials,
+        body: JSON.stringify({
+          code,
+          codeVerifier,
+          redirectUri: this.getRedirectUri(),
+          clientId: this.config.clientId,
+          provider: this.id
+        })
+      })
+
+      if (!response.ok) {
+        let error
+        try {
+          error = await response.json()
+        } catch (_) {
+          error = await response.text()
+        }
+        console.error('GoogleProvider: Backend token exchange failed:', error)
+        const message =
+          (error && (error.error_description || error.error || error.message)) ||
+          'Backend token exchange failed'
+        throw new Error(message)
+      }
+
+      console.log('GoogleProvider: Token exchange completed via backend')
+      return await response.json()
+    }
+
     const params = new URLSearchParams({
       client_id: this.config.clientId,
-      client_secret: this.config.clientSecret,
       grant_type: 'authorization_code',
       code: code,
       redirect_uri: this.getRedirectUri(),
       code_verifier: codeVerifier
     })
 
-    console.log('GoogleProvider: Token exchange successful')
+    const directSecret = this.config.clientSecret
+    const includeSecret = typeof directSecret === 'string' && directSecret.length > 0
+
+    if (includeSecret) {
+      params.set('client_secret', directSecret)
+    }
+
+    console.log('GoogleProvider: Token exchange payload (direct)', {
+      hasSecret: params.has('client_secret'),
+      allowInsecureClientSecret: this.allowInsecureClientSecret,
+      configHasSecret: includeSecret
+    })
 
     const response = await fetch(this.tokenUrl, {
       method: 'POST',
@@ -154,11 +291,20 @@ export class GoogleProvider extends AuthProvider {
     })
 
     if (!response.ok) {
-      const error = await response.json()
+      let error
+      try {
+        error = await response.json()
+      } catch (_) {
+        error = await response.text()
+      }
       console.error('GoogleProvider: Token exchange failed:', error)
-      throw new Error(`Token exchange failed: ${error.error_description || error.error}`)
+      const message =
+        (error && (error.error_description || error.error || error.message)) ||
+        'Token exchange failed'
+      throw new Error(message)
     }
 
+    console.log('GoogleProvider: Token exchange completed via direct flow')
     return await response.json()
   }
 
@@ -188,14 +334,69 @@ export class GoogleProvider extends AuthProvider {
   }
 
   async refreshToken(refreshToken) {
+    if (this.useBackendExchange) {
+      const response = await fetch(this.backendRefreshUrl || this.backendTokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.backendHeaders
+        },
+        credentials: this.backendCredentials,
+        body: JSON.stringify({
+          refreshToken,
+          clientId: this.config.clientId,
+          provider: this.id
+        })
+      })
+
+      if (!response.ok) {
+        let error
+        try {
+          error = await response.json()
+        } catch (_) {
+          error = await response.text()
+        }
+        console.error('GoogleProvider: Backend token refresh failed:', error)
+        const message =
+          (error && (error.error_description || error.error || error.message)) ||
+          'Token refresh failed'
+        return {
+          success: false,
+          error: message
+        }
+      }
+
+      const tokenData = await response.json()
+      console.log('GoogleProvider: Token refresh completed via backend')
+      
+      return {
+        success: true,
+        tokens: {
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token || refreshToken,
+          expiresIn: tokenData.expires_in
+        }
+      }
+    }
+
     const params = new URLSearchParams({
       client_id: this.config.clientId,
-      client_secret: this.config.clientSecret,
       grant_type: 'refresh_token',
       refresh_token: refreshToken
     })
 
-    console.log('GoogleProvider: Token refresh successful')
+    const directSecret = this.config.clientSecret
+    const includeSecret = typeof directSecret === 'string' && directSecret.length > 0
+
+    if (includeSecret) {
+      params.set('client_secret', directSecret)
+    }
+
+    console.log('GoogleProvider: Token refresh payload (direct)', {
+      hasSecret: params.has('client_secret'),
+      allowInsecureClientSecret: this.allowInsecureClientSecret,
+      configHasSecret: includeSecret
+    })
 
     const response = await fetch(this.tokenUrl, {
       method: 'POST',

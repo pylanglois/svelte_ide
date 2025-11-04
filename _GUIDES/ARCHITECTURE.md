@@ -137,6 +137,27 @@ En suivant ce modèle, l'outil peut être injecté via la prop `externalTools` (
 
 > ℹ️ Les projets consommateurs peuvent également injecter des outils dynamiquement (ex: `mount(App, { props: { externalTools }})`). L'IDE ne fait aucune hypothèse sur leur provenance tant qu'ils respectent l'API `Tool`.
 
+## Authentification Google OAuth
+
+Deux parcours sont supportés pour l'authentification Google : un flux 100 % SPA à base de PKCE, et un flux hybride où un backend réalise les échanges sensibles. Les deux modes partagent la même API côté IDE ; seul le fichier de configuration change.
+
+### Mode SPA (PKCE pur)
+- Prévoir un client OAuth 2.0 configuré pour les applications JavaScript, activer PKCE et ne pas utiliser le `client_secret`.
+- Définir `VITE_AUTH_PROVIDERS=google` et `VITE_GOOGLE_CLIENT_ID=<id-oauth>` ; ne pas exposer de secret ni de jeton dans les variables `VITE_`.
+- Le frontend échange directement le code d'autorisation en appelant les endpoints Google. Les jetons reçus restent manipulés côté navigateur (cf. tâches #3 pour le durcissement du stockage).
+- Toute présence d'un `clientSecret` est bloquée sauf si `VITE_GOOGLE_ALLOW_INSECURE_SECRET=true` est explicitement positionné (usage toléré uniquement en local) afin d'éviter la fuite d'un secret dans le bundle.
+- Une option de contournement existe pour le développement (`VITE_GOOGLE_ALLOW_INSECURE_SECRET=true` + `VITE_GOOGLE_CLIENT_SECRET`) : elle injecte le secret dans les appels directs à Google mais doit rester strictement réservée aux environnements non productifs.
+
+### Mode Backend (recommandé)
+- Exposer un endpoint serveur (ex: `/api/auth/google/token`) qui reçoit `code`, `codeVerifier`, `redirectUri` et `clientId`, puis effectue l'échange avec Google en utilisant le `client_secret` stocké côté serveur.
+- Configurer le frontend avec `VITE_GOOGLE_BACKEND_TOKEN_URL=https://<votre-backend>/api/auth/google/token` et, si besoin, `VITE_GOOGLE_BACKEND_REFRESH_URL` pour le rafraîchissement.
+- Le provider enverra automatiquement les requêtes backend avec `credentials: 'include'` pour permettre la mise en place de cookies httpOnly. Ajuster `backendCredentials` ou `backendHeaders` dans le code si un autre comportement est requis.
+- Cette approche permet de placer le `client_secret` et la persistance des jetons en zone serveur (cookies httpOnly, base chiffrée, etc.).
+
+### Basculer d'un mode à l'autre
+- L'absence d'URL backend fait basculer le provider en mode SPA. Renseigner une URL de backend (ou `VITE_GOOGLE_USE_BACKEND=true`) active automatiquement le mode serveur.
+- Aucune modification n’est nécessaire ailleurs dans l’application : `AuthManager` et `authStore` détectent la configuration et utilisent la même API.
+
 ## Principes transverses
 - Observer en priorité les conventions déjà présentes dans la base de code avant d’appliquer de nouvelles règles
 - Respecter la règle de langage : code et noms de fichiers en anglais, commentaires et libellés UI en français

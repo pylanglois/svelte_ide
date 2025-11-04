@@ -32,22 +32,63 @@ function initializeAuthProviders(authManager) {
   }
 
   if (enabledProviders.includes('google')) {
+    const backendFlag = import.meta.env.VITE_GOOGLE_USE_BACKEND
+    const allowSecretFlag = import.meta.env.VITE_GOOGLE_ALLOW_INSECURE_SECRET
     const googleConfig = {
-      clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-      clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET
+      clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim(),
+      backendTokenUrl: import.meta.env.VITE_GOOGLE_BACKEND_TOKEN_URL?.trim(),
+      backendRefreshUrl: import.meta.env.VITE_GOOGLE_BACKEND_REFRESH_URL?.trim(),
+      backendCredentials: import.meta.env.VITE_GOOGLE_BACKEND_CREDENTIALS,
+      useBackendExchange: backendFlag === 'true' || backendFlag === '1',
+      clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET?.trim(),
+      allowInsecureClientSecret: allowSecretFlag === 'true' || allowSecretFlag === '1'
     }
     
     console.log('AuthStore: Google config check:', { 
       hasClientId: !!googleConfig.clientId,
-      hasClientSecret: !!googleConfig.clientSecret
+      hasBackendTokenUrl: !!googleConfig.backendTokenUrl,
+      backendModeFlag: googleConfig.useBackendExchange,
+      hasClientSecret: !!googleConfig.clientSecret,
+      allowInsecureClientSecret: googleConfig.allowInsecureClientSecret
     })
     
-    if (googleConfig.clientId && googleConfig.clientSecret) {
-      authManager.registerProvider(new GoogleProvider(googleConfig))
-      hasRealProviders = true
-      console.log('AuthStore: Google provider registered')
+    if (googleConfig.clientId) {
+      const useBackend = googleConfig.useBackendExchange || !!googleConfig.backendTokenUrl || !!googleConfig.backendRefreshUrl
+      if (useBackend && !googleConfig.backendTokenUrl) {
+        console.warn('AuthStore: Google provider skipped - backend exchange enabled but VITE_GOOGLE_BACKEND_TOKEN_URL is missing')
+      } else {
+        const providerConfig = {
+          clientId: googleConfig.clientId
+        }
+        
+        if (useBackend) {
+          providerConfig.useBackendExchange = true
+          if (googleConfig.backendTokenUrl) {
+            providerConfig.backendTokenUrl = googleConfig.backendTokenUrl
+          }
+          if (googleConfig.backendRefreshUrl) {
+            providerConfig.backendRefreshUrl = googleConfig.backendRefreshUrl
+          }
+          if (googleConfig.backendCredentials) {
+            providerConfig.backendCredentials = googleConfig.backendCredentials
+          }
+        }
+        
+        if (!useBackend && googleConfig.clientSecret) {
+          if (!googleConfig.allowInsecureClientSecret) {
+            console.warn('AuthStore: Google clientSecret provided but VITE_GOOGLE_ALLOW_INSECURE_SECRET is not true; secret will be ignored.')
+          } else {
+            providerConfig.clientSecret = googleConfig.clientSecret
+            providerConfig.allowInsecureClientSecret = true
+          }
+        }
+        
+        authManager.registerProvider(new GoogleProvider(providerConfig))
+        hasRealProviders = true
+        console.log('AuthStore: Google provider registered')
+      }
     } else {
-      console.log('AuthStore: Google provider skipped - missing clientId or clientSecret')
+      console.log('AuthStore: Google provider skipped - missing clientId')
     }
   }
 
