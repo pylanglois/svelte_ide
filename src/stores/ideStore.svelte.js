@@ -63,20 +63,6 @@ class IdeStore {
       this._setCurrentFocusGroup(groupId)
     })
 
-    this.mainMenuService = mainMenuService
-    this._initializeMainMenu()
-  }
-
-  _initializeMainMenu() {
-    mainMenuService.registerMenu({ id: 'help', label: 'Aide', order: 900 }, 'core')
-    mainMenuService.registerMenuItem('help', {
-      id: 'help-about',
-      label: 'A propos...',
-      order: 100,
-      action: () => {
-        this.addLog('Hello', 'info', 'Général')
-      }
-    }, 'core')
   }
 
   get tabs() {
@@ -707,6 +693,32 @@ class IdeStore {
   restoreState(state) {
   }
 
+}
+
+export function registerDefaultHelpMenu(ideStoreInstance, { menuId = 'help', ownerId = 'core', itemId = 'help-about' } = {}) {
+  if (!ideStoreInstance || typeof ideStoreInstance.addLog !== 'function') {
+    console.warn('registerDefaultHelpMenu: invalid ideStore instance provided')
+    return
+  }
+
+  const existingMenu = mainMenuService.getMenu(menuId)
+  if (!existingMenu) {
+    mainMenuService.registerMenu({ id: menuId, label: 'Aide', order: 900 }, ownerId)
+  }
+
+  const menuAfterRegistration = mainMenuService.getMenu(menuId)
+  const hasItem = menuAfterRegistration?.items?.some(item => item.id === itemId)
+
+  if (!hasItem) {
+    mainMenuService.registerMenuItem(menuId, {
+      id: itemId,
+      label: 'A propos...',
+      order: 100,
+      action: () => {
+        ideStoreInstance.addLog('Hello', 'info', 'Général')
+      }
+    }, ownerId)
+  }
 }
 
 export const ideStore = new IdeStore()

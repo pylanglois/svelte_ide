@@ -2,8 +2,6 @@
   import { toolManager } from '@/core/ToolManager.svelte.js'
   import { ideStore } from '@/stores/ideStore.svelte.js'
   import { getAuthStore } from '@/stores/authStore.svelte.js'
-  import { eventBus } from '@/core/EventBusService.svelte.js'
-  import { ConsoleTool, NotificationsTool } from '@/core/SystemTools.js'
 
   import TitleBar from '@/components/layout/chrome/TitleBar.svelte'
   import Toolbar from '@/components/layout/chrome/Toolbar.svelte'
@@ -18,7 +16,50 @@
 
   const authStore = getAuthStore()
 
-  let { externalTools = [] } = $props()
+  let { externalTools = [], systemTools = [], statusMessages = {} } = $props()
+  const {
+    initializing: initializingStatus = '',
+    systemTools: systemToolsStatus = '',
+    externalTools: externalToolsStatus = '',
+    ready: readyStatus = ''
+  } = statusMessages ?? {}
+
+  function registerToolResult(result) {
+    if (!result) {
+      return
+    }
+
+    const tools = Array.isArray(result) ? result : [result]
+    for (const tool of tools) {
+      if (!tool) {
+        continue
+      }
+      try {
+        toolManager.registerTool(tool)
+      } catch (registrationError) {
+        console.warn('App: failed to register system tool instance', registrationError)
+      }
+    }
+  }
+
+  async function registerSystemTools() {
+    if (!systemTools || systemTools.length === 0) {
+      return
+    }
+
+    if (systemToolsStatus) {
+      ideStore.setStatusMessage(systemToolsStatus)
+    }
+
+    for (const entry of systemTools) {
+      try {
+        const result = typeof entry === 'function' ? await entry({ toolManager, ideStore }) : entry
+        registerToolResult(result)
+      } catch (error) {
+        console.warn('App: system tool setup failed', error)
+      }
+    }
+  }
   const KEYBOARD_RESIZE_STEP = 16
 
   let leftPanelWidth = $state(250)
@@ -89,28 +130,39 @@
 
   (async () => {
     window.toolManager = toolManager
-    ideStore.setStatusMessage('Initialisation du systeme...')
-    
-    await authStore.initialize()
-    
-    ideStore.setStatusMessage('Chargement des outils systeme...')
-    
-    const consoleTool = new ConsoleTool()
-    toolManager.registerTool(consoleTool)
-    toolManager.registerTool(new NotificationsTool())
 
-    ideStore.setStatusMessage('Chargement des outils externes...')
-    await toolManager.registerExternalTools(externalTools)
-    
-    if (authStore.isAuthenticated && authStore.currentUser) {
-      try {
-        await ideStore.restoreUserLayout(authStore.currentUser)
-      } catch (layoutError) {
-        console.warn('App: Failed to restore user layout:', layoutError)
+    try {
+      if (initializingStatus) {
+        ideStore.setStatusMessage(initializingStatus)
       }
+
+      await authStore.initialize()
+
+      await registerSystemTools()
+
+      if (externalToolsStatus && Array.isArray(externalTools) && externalTools.length > 0) {
+        ideStore.setStatusMessage(externalToolsStatus)
+      }
+
+      await toolManager.registerExternalTools(externalTools)
+
+      if (authStore.isAuthenticated && authStore.currentUser) {
+        try {
+          await ideStore.restoreUserLayout(authStore.currentUser)
+        } catch (layoutError) {
+          console.warn('App: Failed to restore user layout:', layoutError)
+        }
+      }
+
+      if (readyStatus) {
+        ideStore.setStatusMessage(readyStatus)
+      } else if (initializingStatus || systemToolsStatus || externalToolsStatus) {
+        ideStore.setStatusMessage('')
+      }
+    } catch (bootstrapError) {
+      console.error('App: bootstrap sequence failed', bootstrapError)
+      ideStore.setStatusMessage('')
     }
-    
-    ideStore.setStatusMessage('IDE pret')
   })()
   
   $effect(() => {
