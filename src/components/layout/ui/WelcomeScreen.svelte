@@ -76,7 +76,7 @@
       </div>
     {/if}
 
-    {#if !authStore.initialized}
+    {#if !authStore.initialized && !authStore.error}
       <p>Chargement...</p>
     {/if}
   </div>
