@@ -1,31 +1,67 @@
 <script>
-  import { ideStore } from '@/stores/ideStore.svelte.js'
+  import { statusBarService } from '@/core/StatusBarService.svelte.js'
 
-  let currentTime = $state(new Date().toLocaleTimeString())
-
-  // Utiliser $effect une seule fois pour l'horloge
-  $effect(() => {
-    const interval = setInterval(() => {
-      currentTime = new Date().toLocaleTimeString()
-    }, 1000)
-
-    return () => clearInterval(interval)
+  let sections = $state({
+    left: [],
+    center: [],
+    right: []
   })
+
+  $effect(() => {
+    sections = statusBarService.sections
+  })
+
+  function getDisplayText(item) {
+    if (typeof item.text === 'function') {
+      try {
+        return item.text()
+      } catch (error) {
+        console.warn('StatusBar: failed to resolve text item', error)
+        return ''
+      }
+    }
+    return item.text ?? ''
+  }
 </script>
 
 <div class="status-bar">
   <div class="status-left">
-    <span class="status-message">{ideStore.statusMessage || 'Prêt'}</span>
+    {#each sections.left as item (item.id)}
+      {@const Component = item.component}
+      {#if Component}
+        <Component {...item.props} />
+      {:else if item.text}
+        <span class={`status-text ${item.className || ''}`} aria-label={item.ariaLabel || undefined}>
+          {getDisplayText(item)}
+        </span>
+      {/if}
+    {/each}
   </div>
   
   <div class="status-center">
-    {#if ideStore.activeTab}
-      <span class="active-file">Fichier actif: {ideStore.activeTab}</span>
-    {/if}
+    {#each sections.center as item (item.id)}
+      {@const Component = item.component}
+      {#if Component}
+        <Component {...item.props} />
+      {:else if item.text}
+        <span class={`status-text ${item.className || ''}`} aria-label={item.ariaLabel || undefined}>
+          {getDisplayText(item)}
+        </span>
+      {/if}
+    {/each}
   </div>
   
   <div class="status-right">
-    <span class="time">{currentTime}</span>
+    {#each sections.right as item (item.id)}
+      {@const Component = item.component}
+      {#if Component}
+        <Component {...item.props} />
+      {:else if item.text}
+        <span class={`status-text ${item.className || ''}`} aria-label={item.ariaLabel || undefined}>
+          {getDisplayText(item)}
+        </span>
+      {/if}
+    {/each}
   </div>
 </div>
 
@@ -53,16 +89,17 @@
     justify-content: center;
   }
 
-  .status-message {
+  .status-text,
+  :global(.status-message) {
     color: white;
   }
 
-  .active-file {
+  :global(.status-active-file) {
     color: rgba(255, 255, 255, 0.9);
     font-style: italic;
   }
 
-  .time {
+  :global(.status-clock) {
     color: rgba(255, 255, 255, 0.8);
     font-family: 'Courier New', monospace;
   }
