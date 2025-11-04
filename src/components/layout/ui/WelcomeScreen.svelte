@@ -70,6 +70,12 @@
       </div>
     {/if}
 
+    {#if authStore.error}
+      <div class="error-notice">
+        <p>❌ {authStore.error}</p>
+      </div>
+    {/if}
+
     {#if !authStore.initialized}
       <p>Chargement...</p>
     {/if}
@@ -178,5 +184,14 @@
     padding: 4px 8px;
     font-family: monospace;
     font-size: 12px;
+  }
+
+  .error-notice {
+    margin-top: 24px;
+    padding: 16px;
+    background: #4a1a1a;
+    border: 1px solid #8b2635;
+    color: #ffb3b3;
+    font-size: 14px;
   }
 </style>

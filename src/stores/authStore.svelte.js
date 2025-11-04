@@ -22,7 +22,11 @@ function initializeAuthProviders(authManager) {
   }
 
   if (isProd && mockRequested) {
-    throw new Error('AuthStore: MockProvider is not allowed in production builds')
+    authWarn('MockProvider requested in production build; blocking usage', {
+      enabledProviders,
+      isProd
+    })
+    throw new Error('Provider not supported')
   }
 
   authDebug('Enabled auth providers', { enabledProviders })
@@ -147,6 +151,7 @@ function createAuthStore() {
   let availableProviders = $state([])
   let initialized = $state(false)
   let initializing = $state(false)
+  let initializationFailed = $state(false)
 
   function syncFromManager(forceProviders = false) {
     isAuthenticated = authManager.isAuthenticated
@@ -165,7 +170,7 @@ function createAuthStore() {
     get initialized() { return initialized },
 
     async initialize() {
-      if (initialized || initializing) {
+      if (initialized || initializing || initializationFailed) {
         return
       }
 
@@ -211,7 +216,8 @@ function createAuthStore() {
         syncFromManager(true)
       } catch (err) {
         authError('AuthStore initialization error', err)
-        error = err.message
+        error = err.message || 'Unknown authentication error'
+        initializationFailed = true
       } finally {
         isLoading = false
         initializing = false
@@ -311,6 +317,7 @@ function createAuthStore() {
 
     clearError() {
       error = null
+      initializationFailed = false
     }
   }
 }
