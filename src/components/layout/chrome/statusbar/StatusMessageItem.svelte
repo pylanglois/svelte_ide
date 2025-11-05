@@ -2,12 +2,8 @@
   import { ideStore } from '@/stores/ideStore.svelte.js'
 
   const props = $props()
-  let fallback = 'Prêt'
-  let className = ''
-
-  $effect(() => {
-    ({ fallback = 'Prêt', className = '' } = props)
-  })
+  const fallback = $derived(props.fallback ?? 'Prêt')
+  const className = $derived(props.className ?? '')
 </script>
 
 <span class={`status-message ${className}`}>

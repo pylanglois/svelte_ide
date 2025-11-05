@@ -6,13 +6,9 @@
     minute: '2-digit',
     second: '2-digit'
   }
-  let locale = defaultLocale
-  let options = defaultOptions
-  let className = ''
-
-  $effect(() => {
-    ({ locale = defaultLocale, options = defaultOptions, className = '' } = props)
-  })
+  const locale = $derived(props.locale ?? defaultLocale)
+  const options = $derived(props.options ?? defaultOptions)
+  const className = $derived(props.className ?? '')
 
   let now = $state(new Date())
 

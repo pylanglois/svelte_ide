@@ -2,13 +2,9 @@
   import { ideStore } from '@/stores/ideStore.svelte.js'
 
   const props = $props()
-  let label = 'Fichier actif :'
-  let emptyLabel = ''
-  let className = ''
-
-  $effect(() => {
-    ({ label = 'Fichier actif :', emptyLabel = '', className = '' } = props)
-  })
+  const label = $derived(props.label ?? 'Fichier actif :')
+  const emptyLabel = $derived(props.emptyLabel ?? '')
+  const className = $derived(props.className ?? '')
 
   function getActiveTabLabel(tab) {
     if (!tab) {
