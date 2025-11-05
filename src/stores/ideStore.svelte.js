@@ -722,5 +722,3 @@ export function registerDefaultHelpMenu(ideStoreInstance, { menuId = 'help', own
 }
 
 export const ideStore = new IdeStore()
-
-ideStore.addConsoleTab('General')
