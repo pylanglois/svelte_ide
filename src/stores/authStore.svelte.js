@@ -1,6 +1,6 @@
+import { authDebug, authError, authWarn } from '@/core/auth/authLogging.svelte.js'
 import { AuthManager } from '@/core/auth/AuthManager.svelte.js'
 import { AzureProvider, GoogleProvider, MockProvider } from '@/core/auth/providers/index.js'
-import { authDebug, authWarn, authError } from '@/core/auth/authLogging.svelte.js'
 
 function getIdeStore() {
   return import('@/stores/ideStore.svelte.js').then(module => module.ideStore)
@@ -128,10 +128,10 @@ function initializeAuthProviders(authManager) {
     const mockConfig = {
       simulateDelay: import.meta.env.VITE_MOCK_AUTH_DELAY ? parseInt(import.meta.env.VITE_MOCK_AUTH_DELAY) : 1000,
       userInfo: {
-        id: 'mock-dev-user',
+        sub: 'mock-dev-user',
         name: 'Développeur Mock',
         email: 'dev@svelte-ide.local',
-        avatar: '👨‍💻'
+        picture: '👨‍💻'
       }
     }
 
@@ -152,6 +152,10 @@ function createAuthStore() {
   let initialized = $state(false)
   let initializing = $state(false)
   let initializationFailed = $state(false)
+  let encryptionKey = $state(null)
+
+  // Dérivé : indique si une clé de chiffrement est disponible
+  const hasEncryptionKey = $derived(encryptionKey !== null && encryptionKey.length > 0)
 
   function syncFromManager(forceProviders = false) {
     isAuthenticated = authManager.isAuthenticated
@@ -161,13 +165,31 @@ function createAuthStore() {
     }
   }
 
-  return {
+  const store = {
     get isAuthenticated() { return isAuthenticated },
     get currentUser() { return currentUser },
     get isLoading() { return isLoading },
     get error() { return error },
     get availableProviders() { return availableProviders },
     get initialized() { return initialized },
+    get encryptionKey() { return encryptionKey },
+    get hasEncryptionKey() { return hasEncryptionKey },
+
+    setEncryptionKey(key) {
+      if (!key || typeof key !== 'string') {
+        authWarn('Attempted to set invalid encryption key', { type: typeof key })
+        return
+      }
+      encryptionKey = key
+      authDebug('Encryption key set', { keyLength: key.length })
+    },
+
+    clearEncryptionKey() {
+      if (encryptionKey) {
+        authDebug('Clearing encryption key')
+        encryptionKey = null
+      }
+    },
 
     async initialize() {
       if (initialized || initializing || initializationFailed) {
@@ -320,6 +342,11 @@ function createAuthStore() {
       initializationFailed = false
     }
   }
+
+  // Enregistrer la référence du store dans AuthManager
+  authManager.setAuthStoreRef(store)
+
+  return store
 }
 
 let _authStore = null

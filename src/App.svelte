@@ -1,4 +1,5 @@
 <script>
+  import { indexedDBService } from '@/core/persistence/IndexedDBService.svelte.js';
   import { toolManager } from '@/core/ToolManager.svelte.js';
   import { getAuthStore } from '@/stores/authStore.svelte.js';
   import { ideStore } from '@/stores/ideStore.svelte.js';
@@ -12,8 +13,20 @@
   import ContextMenu from '@/components/layout/ui/ContextMenu.svelte';
   import ModalHost from '@/components/layout/ui/ModalHost.svelte';
   import WelcomeScreen from '@/components/layout/ui/WelcomeScreen.svelte';
+  import ReAuthModal from '@/components/system/ReAuthModal.svelte';
 
   const authStore = getAuthStore()
+
+  // Synchroniser IndexedDBService avec authStore
+  $effect(() => {
+    if (authStore.encryptionKey) {
+      indexedDBService.setEncryptionKey(authStore.encryptionKey)
+      console.debug('App: IndexedDB encryption key synchronized')
+    } else {
+      indexedDBService.clearEncryptionKey()
+      console.debug('App: IndexedDB encryption key cleared')
+    }
+  })
 
   function normalizeBranding(value) {
     if (!value) {
@@ -167,10 +180,20 @@
 
   (async () => {
     window.toolManager = toolManager
+    window.indexedDBService = indexedDBService // Pour tests manuels dans console
 
     try {
       if (initializingStatus) {
         ideStore.setStatusMessage(initializingStatus)
+      }
+
+      // Initialiser IndexedDB avec les stores de base
+      try {
+        await indexedDBService.initialize(['default', 'tools', 'layout', 'preferences'])
+        console.debug('App: IndexedDB initialized successfully')
+      } catch (idbError) {
+        console.warn('App: IndexedDB initialization failed, data persistence may be limited', idbError)
+        // Ne pas bloquer l'application, continuer sans IndexedDB
       }
 
       await authStore.initialize()
@@ -328,3 +351,5 @@
     flex-shrink: 0;
   }
 </style>
+
+<ReAuthModal />

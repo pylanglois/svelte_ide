@@ -1,5 +1,6 @@
+import { authDebug, authError, authWarn } from '@/core/auth/authLogging.svelte.js'
+import { deriveEncryptionKey } from '@/core/auth/EncryptionKeyDerivation.svelte.js'
 import { TokenManager } from '@/core/auth/TokenManager.svelte.js'
-import { authDebug, authWarn, authError } from '@/core/auth/authLogging.svelte.js'
 
 export class AuthManager {
   constructor() {
@@ -8,16 +9,103 @@ export class AuthManager {
     this.tokenManager = new TokenManager()
     this._isAuthenticated = false
     this._currentUser = null
+    this._authStoreRef = null
     
     this.tokenManager.setAutoRefreshHandler(() => {
-      this.refreshToken().catch(error => {
+      return this.refreshToken().catch(error => {
         authWarn('Auto-refresh failed', error)
+        return { success: false, error: error.message }
       })
+    })
+
+    this.tokenManager.setSessionExpiredHandler(() => {
+      return this.handleSessionExpired()
     })
 
     this.ready = this.tokenManager.ready.then(() => {
       return this.initializeAuthState()
     })
+  }
+
+  /**
+   * Gère l'expiration définitive de la session (après échec de tous les refresh)
+   * @private
+   */
+  async handleSessionExpired() {
+    authWarn('Session expired, user needs to re-authenticate')
+    
+    this._isAuthenticated = false
+    this._currentUser = null
+    this._clearEncryptionKey()
+    this.activeProvider = null
+
+    // Émettre événement pour que l'UI puisse réagir
+    if (typeof window !== 'undefined') {
+      const { eventBus } = await import('@/core/EventBusService.svelte.js')
+      eventBus.publish('auth:session-expired', {
+        timestamp: new Date().toISOString(),
+        message: 'Votre session a expiré. Veuillez vous reconnecter.'
+      })
+    }
+
+    // Ajouter notification si ideStore disponible
+    try {
+      const { ideStore } = await import('@/stores/ideStore.svelte.js')
+      ideStore.addNotification({
+        type: 'warning',
+        message: 'Session expirée',
+        description: 'Veuillez vous reconnecter pour continuer.',
+        duration: 0 // Persistante
+      })
+    } catch (error) {
+      authWarn('Could not display session expired notification', error)
+    }
+  }
+
+  /**
+   * Enregistre une référence à authStore pour mettre à jour la clé de chiffrement
+   * Appelé par authStore lors de son initialisation
+   */
+  setAuthStoreRef(authStore) {
+    this._authStoreRef = authStore
+    authDebug('AuthStore reference registered in AuthManager')
+  }
+
+  /**
+   * Dérive et définit la clé de chiffrement depuis userInfo
+   * @private
+   */
+  async _deriveAndSetEncryptionKey(userInfo) {
+    if (!userInfo) {
+      authWarn('Cannot derive encryption key: userInfo is null')
+      return
+    }
+
+    try {
+      const encryptionKey = await deriveEncryptionKey(userInfo)
+      
+      if (this._authStoreRef) {
+        this._authStoreRef.setEncryptionKey(encryptionKey)
+        authDebug('Encryption key derived and set in authStore')
+      } else {
+        authWarn('AuthStore reference not available, encryption key not set')
+      }
+    } catch (error) {
+      authError('Failed to derive encryption key', error)
+      // Ne pas bloquer l'authentification si la dérivation échoue
+      // L'utilisateur pourra quand même se connecter, mais sans chiffrement IndexedDB
+    }
+  }
+
+  /**
+   * Efface la clé de chiffrement de authStore
+   * @private
+   */
+  _clearEncryptionKey() {
+    if (this._authStoreRef) {
+      this._authStoreRef.clearEncryptionKey()
+      authDebug('Encryption key cleared from authStore')
+    }
   }
 
   get isAuthenticated() {
@@ -35,6 +123,11 @@ export class AuthManager {
     if (accessToken) {
       this._isAuthenticated = true
       this._currentUser = this.tokenManager.userInfo
+      
+      // Dériver la clé de chiffrement si userInfo disponible
+      if (this._currentUser) {
+        await this._deriveAndSetEncryptionKey(this._currentUser)
+      }
     }
   }
 
@@ -108,6 +201,9 @@ export class AuthManager {
       this._isAuthenticated = true
       this._currentUser = result.userInfo
       
+      // Dériver la clé de chiffrement après login réussi
+      await this._deriveAndSetEncryptionKey(result.userInfo)
+      
       authDebug('Authentication successful', { providerId: provider.id })
       
       // Marquer ce callback comme traité
@@ -158,6 +254,11 @@ export class AuthManager {
       this._isAuthenticated = true
       this._currentUser = result.userInfo ?? null
 
+      // Dériver la clé de chiffrement après login réussi
+      if (this._currentUser) {
+        await this._deriveAndSetEncryptionKey(this._currentUser)
+      }
+
       authDebug('Login completed successfully', { providerId })
     }
 
@@ -181,6 +282,9 @@ export class AuthManager {
     this.activeProvider = null
     this._isAuthenticated = false
     this._currentUser = null
+    
+    // Effacer la clé de chiffrement lors du logout
+    this._clearEncryptionKey()
     
     authDebug('Logout completed')
     
@@ -220,6 +324,13 @@ export class AuthManager {
           result.tokens.expiresIn,
           this._currentUser
         )
+        
+        // Re-dériver la clé de chiffrement après refresh
+        // (normalement userInfo ne change pas, mais on régénère par sécurité)
+        if (this._currentUser) {
+          await this._deriveAndSetEncryptionKey(this._currentUser)
+        }
+        
         authDebug('Token refresh successful', { providerId: this.activeProvider.id })
         return { success: true, accessToken: result.tokens.accessToken }
       }
@@ -227,6 +338,7 @@ export class AuthManager {
       authError('Token refresh failed', result.error)
       this._isAuthenticated = false
       this._currentUser = null
+      this._clearEncryptionKey()
       await this.tokenManager.clear()
       
       return result
@@ -234,6 +346,7 @@ export class AuthManager {
       authError('Token refresh error', error)
       this._isAuthenticated = false
       this._currentUser = null
+      this._clearEncryptionKey()
       await this.tokenManager.clear()
       
       return {

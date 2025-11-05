@@ -9,10 +9,10 @@ export class MockProvider extends AuthProvider {
       simulateDelay: config.simulateDelay ?? 1000,
       shouldFail: config.shouldFail ?? false,
       userInfo: config.userInfo ?? {
-        id: 'mock-user-123',
+        sub: 'mock-user-123', // Standard OAuth2/OIDC : 'sub' = subject (user ID)
         name: 'John Doe',
         email: 'john.doe@example.com',
-        avatar: '👨‍💻'
+        picture: '👨‍💻'
       },
       ...config
     }
@@ -89,6 +89,18 @@ export class MockProvider extends AuthProvider {
 
   async refreshToken(refreshToken) {
     authDebug('Mock provider refreshing token')
+    
+    // Hook pour les tests : simuler des échecs de refresh
+    if (typeof window !== 'undefined' && window.testAutoRefresh) {
+      const shouldFail = window.testAutoRefresh.shouldSimulateRefreshFailure?.()
+      if (shouldFail) {
+        authWarn('Mock provider simulating refresh failure (test mode)')
+        return {
+          success: false,
+          error: 'Simulated refresh failure for testing'
+        }
+      }
+    }
     
     if (this.config.simulateDelay > 0) {
       await new Promise(resolve => setTimeout(resolve, 800))
