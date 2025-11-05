@@ -9,3 +9,7 @@ export { default as StatusBarClockItem } from './components/layout/chrome/status
 export { default as StatusBarMessageItem } from './components/layout/chrome/statusbar/StatusMessageItem.svelte'
 export { default as StatusBarActiveTabItem } from './components/layout/chrome/statusbar/ActiveTabItem.svelte'
 export { ConsoleTool, NotificationsTool } from './core/SystemTools.js'
+export { applyCsp } from './core/security/csp.svelte.js'
+export { TokenCipher } from './core/security/tokenCipher.svelte.js'
+export { getTokenSecurityConfig } from './core/auth/tokenSecurityConfig.svelte.js'
+export { APP_KEY, namespacedKey } from './core/config/appKey.js'

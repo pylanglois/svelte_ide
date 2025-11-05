@@ -164,6 +164,7 @@ Deux parcours sont supportés pour l'authentification Google : un flux 100 % SPA
 - Pour auditer les accès, activez `VITE_AUTH_LOG_TOKEN_ACCESSES=true`. Les empreintes sont tronquées (`abcd…wxyz`) pour éviter toute fuite dans la console.
 - Lorsque le backend gère des cookies httpOnly, positionnez `VITE_AUTH_TOKEN_PERSISTENCE=memory` afin qu’aucun jeton ne soit conservé dans le navigateur.
 - Une politique CSP stricte peut être injectée via `VITE_CSP_DIRECTIVES`. À défaut, une valeur par défaut est appliquée en production pour réduire la surface XSS.
+- Les intégrateurs peuvent utiliser directement `applyCsp`, `getTokenSecurityConfig`, `TokenCipher`, `APP_KEY` et `namespacedKey` via l’API publique (`import { … } from 'svelte-ide'`) pour appliquer la même stratégie de sécurité dans leurs outils externes.
 - Les traces verbeuses peuvent être activées via `VITE_AUTH_DEBUG_LOGS=true`. Par défaut, seules les erreurs et avertissements sont affichés en production.
 - En production (`import.meta.env.PROD`), `VITE_AUTH_PROVIDERS` doit être défini et ne peut contenir `mock`. Le `MockProvider` reste disponible uniquement pour le développement.
 
