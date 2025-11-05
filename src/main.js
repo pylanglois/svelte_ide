@@ -1,5 +1,6 @@
 import { mount } from 'svelte'
 import App from '@/App.svelte'
+import AppLogo from '@/components/layout/chrome/AppLogo.svelte'
 import { applyCsp } from '@/core/security/csp.svelte.js'
 import { ConsoleTool, NotificationsTool } from '@/core/SystemTools.js'
 import { statusBarService } from '@/core/StatusBarService.svelte.js'
@@ -13,6 +14,10 @@ applyCsp()
 let externalTools = []
 let systemTools = []
 let statusMessages
+const branding = {
+  component: AppLogo,
+  props: { size: 26 }
+}
 
 if (import.meta.env.DEV) {
   const module = await import('@/test_tools/devExternalTools.js')
@@ -82,7 +87,8 @@ const app = mount(App, {
   props: {
     externalTools,
     systemTools,
-    statusMessages
+    statusMessages,
+    branding
   }
 })
 

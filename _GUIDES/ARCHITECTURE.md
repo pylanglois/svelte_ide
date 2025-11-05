@@ -110,22 +110,24 @@ C'est le composant racine qui assemble toutes les pièces du puzzle.
 -   **Initialisation** : Au montage, il instancie les outils système (console, notifications, etc.), les enregistre via `toolManager`, puis charge les outils externes fournis via la prop `externalTools`.
 -   **Assemblage de l'interface** : Il intègre tous les composants `layout` (`TitleBar`, `Toolbar`, `MainView`, etc.) pour former l'application complète.
 -   **Logique de l'interface globale** : Il gère des interactions qui affectent toute l'interface, comme le redimensionnement des panneaux.
--   **Branding du chrome** : Il accepte une prop optionnelle `branding` qui permet aux consommateurs de remplacer l'identité visuelle du `TitleBar` (logo, texte, props associées) sans forker le code du noyau. À défaut, le composant interne `AppLogo` affiche la signature `❱SIDE❰`.
+-   **Branding du chrome** : Il accepte une prop optionnelle `branding` sous la forme `{ component, props }`. Le `TitleBar` rend simplement ce composant ; aucun style additionnel n'est imposé. L'environnement de développement (`src/main.js`) fournit `AppLogo` comme exemple, mais un projet client peut injecter sa propre composante.
 
 > Exemple de configuration :
 > ```javascript
+> import { App, AppLogo } from 'svelte-ide'
+> import ClientBrand from './ClientBrand.svelte'
+>
 > mount(App, {
 >   target,
 >   props: {
 >     branding: {
->       logoComponent: ClientBrand,
->       logoProps: { class: 'brand-logo' },
->       logoText: 'Fallback Inc.'
+>       component: ClientBrand,
+>       props: { size: 26 }
 >     }
 >   }
 > })
 > ```
-> Si `logoComponent` est défini, il est rendu avec `size` (24px par défaut, 26px dans la barre de titre) et les `logoProps` fournis. Sinon, l'IDE affiche `logoText` ou la signature par défaut.
+> Pour réutiliser le visuel par défaut, fournissez `component: AppLogo`. Aucun fallback n'est rendu si `branding` est omis.
 
 ### 6. `LayoutService.svelte.js` : Gestion avancée des onglets
 

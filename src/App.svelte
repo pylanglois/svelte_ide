@@ -16,12 +16,35 @@
 
   const authStore = getAuthStore()
 
+  function normalizeBranding(value) {
+    if (!value) {
+      return null
+    }
+
+    if (value.component || value.props) {
+      return {
+        component: value.component ?? null,
+        props: value.props ?? {}
+      }
+    }
+
+    if (value.logoComponent || value.logoProps) {
+      return {
+        component: value.logoComponent ?? null,
+        props: value.logoProps ?? {}
+      }
+    }
+
+    return null
+  }
+
   let {
     externalTools = [],
     systemTools = [],
     statusMessages = {},
     branding = null
   } = $props()
+  const resolvedBranding = $derived(normalizeBranding(branding))
   const {
     initializing: initializingStatus = '',
     systemTools: systemToolsStatus = '',
@@ -192,7 +215,7 @@
   <ModalHost />
 
   {#if authStore.isAuthenticated}
-    <TitleBar {branding} />
+    <TitleBar branding={resolvedBranding} />
     <div class="main-container">
       <Toolbar position="left" />
       

@@ -1,10 +1,12 @@
 <script>
   import AuthUserMenu from './AuthUserMenu.svelte'
-  import AppLogo from './AppLogo.svelte'
   import MainMenu from './MainMenu.svelte'
   import { getAuthStore } from '@/stores/authStore.svelte.js'
 
   let { branding = null } = $props()
+
+  const brandingComponent = $derived(branding?.component ?? null)
+  const brandingProps = $derived(branding?.props ?? {})
 
   const authStore = getAuthStore()
   let isAuthenticated = $state(false)
@@ -16,9 +18,11 @@
 
 <div class="title-bar">
   <div class="left-area">
-    <div class="logo-wrapper">
-      <AppLogo size={26} branding={branding} />
-    </div>
+    {#if brandingComponent}
+      <div class="logo-wrapper">
+        {@render brandingComponent(brandingProps)}
+      </div>
+    {/if}
     {#if isAuthenticated}
       <MainMenu />
     {/if}
@@ -50,6 +54,7 @@
   
   .logo-wrapper {
     flex-shrink: 0;
-    display: block;
+    display: flex;
+    align-items: center;
   }
 </style>
