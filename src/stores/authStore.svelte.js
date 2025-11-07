@@ -312,8 +312,8 @@ function createAuthStore() {
       }
     },
 
-    getAccessToken() {
-      return authManager.getAccessToken()
+    getAccessToken(audienceOrScopes) {
+      return authManager.getAccessToken(audienceOrScopes)
     },
 
     async refreshToken() {

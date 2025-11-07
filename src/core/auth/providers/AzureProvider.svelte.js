@@ -1,5 +1,5 @@
 import { AuthProvider } from '@/core/auth/AuthProvider.svelte.js'
-import { authDebug, authWarn, authError } from '@/core/auth/authLogging.svelte.js'
+import { authDebug, authError, authWarn } from '@/core/auth/authLogging.svelte.js'
 
 export class AzureProvider extends AuthProvider {
   constructor(config) {
@@ -105,23 +105,48 @@ export class AzureProvider extends AuthProvider {
     try {
       authDebug('Exchanging Azure authorization code for tokens')
       const tokenData = await this.exchangeCodeForTokens(code, codeVerifier)
-      authDebug('Azure token exchange successful')
-      
-      authDebug('Fetching Azure user info')
-      const userInfo = await this.getUserInfo(tokenData.access_token)
-      authDebug('Azure user info received', {
-        hasEmail: Boolean(userInfo.email),
-        hasName: Boolean(userInfo.name),
-        hasAvatar: Boolean(userInfo.avatar)
+      authDebug('Azure token exchange successful', {
+        hasAccessToken: Boolean(tokenData.access_token),
+        hasIdToken: Boolean(tokenData.id_token),
+        hasRefreshToken: Boolean(tokenData.refresh_token),
+        scope: tokenData.scope
       })
       
-      authDebug('Azure callback processed successfully')
+      // Extraire les infos utilisateur de l'ID Token
+      authDebug('Extracting user info from ID token')
+      const userInfo = this.getUserInfoFromIdToken(tokenData.id_token)
+      authDebug('Azure user info extracted', {
+        hasEmail: Boolean(userInfo.email),
+        hasName: Boolean(userInfo.name),
+        sub: userInfo.sub
+      })
+      
+      // Préparer les tokens (Azure peut retourner plusieurs audiences si multiples scopes)
+      const accessTokens = []
+      const scopesList = (tokenData.scope || this.scope).split(' ')
+      
+      // Azure retourne UN SEUL access_token mais avec une audience spécifique
+      // Extraire l'audience pour déterminer à quoi sert ce token
+      const audience = this.extractAudienceFromToken(tokenData.access_token)
+      
+      accessTokens.push({
+        accessToken: tokenData.access_token,
+        audience: audience,
+        scopes: scopesList,
+        expiresIn: tokenData.expires_in
+      })
+      
+      authDebug('Azure callback processed successfully', {
+        tokenCount: accessTokens.length,
+        audiences: accessTokens.map(t => t.audience)
+      })
+      
       return {
         success: true,
         tokens: {
-          accessToken: tokenData.access_token,
+          accessTokens: accessTokens, // Format multi-tokens
           refreshToken: tokenData.refresh_token,
-          expiresIn: tokenData.expires_in
+          idToken: tokenData.id_token
         },
         userInfo: userInfo
       }
@@ -131,6 +156,56 @@ export class AzureProvider extends AuthProvider {
         success: false,
         error: err.message
       }
+    }
+  }
+
+  /**
+   * Décode un JWT pour extraire son audience
+   */
+  extractAudienceFromToken(token) {
+    try {
+      const parts = token.split('.')
+      if (parts.length !== 3) {
+        return 'unknown'
+      }
+      
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+      return payload.aud || 'unknown'
+    } catch (error) {
+      authWarn('Failed to extract audience from token', error)
+      return 'unknown'
+    }
+  }
+
+  /**
+   * Extrait les infos utilisateur de l'ID Token (pas besoin d'appeler Graph API)
+   */
+  getUserInfoFromIdToken(idToken) {
+    try {
+      const parts = idToken.split('.')
+      if (parts.length !== 3) {
+        throw new Error('Invalid ID token format')
+      }
+      
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+      
+      authDebug('ID Token payload decoded', {
+        oid: payload.oid,
+        preferred_username: payload.preferred_username,
+        name: payload.name
+      })
+      
+      return {
+        sub: payload.oid,        // Object ID Azure AD (identifiant unique)
+        id: payload.oid,         // Compatibilité
+        email: payload.email || payload.preferred_username,
+        name: payload.name,
+        provider: 'azure',
+        avatar: null // Avatar chargé séparément si besoin
+      }
+    } catch (error) {
+      authError('Failed to decode ID token', error)
+      throw new Error('Failed to extract user info from ID token')
     }
   }
 

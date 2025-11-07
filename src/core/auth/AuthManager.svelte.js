@@ -187,17 +187,30 @@ export class AuthManager {
     const result = await provider.handleOwnCallback()
     
     if (result.success) {
-      if (result.tokens?.accessToken && result.tokens?.expiresIn) {
-        await this.tokenManager.setTokens(
-          result.tokens.accessToken,
-          result.tokens.refreshToken,
-          result.tokens.expiresIn,
-          result.userInfo
-        )
+      // NOUVEAU : Gérer multi-tokens si le provider retourne plusieurs audiences
+      if (result.tokens) {
+        // Format multi-tokens : { tokens: [{accessToken, audience, scopes, expiresIn}], refreshToken, idToken }
+        if (Array.isArray(result.tokens.accessTokens)) {
+          await this.tokenManager.setTokens(
+            result.tokens.accessTokens, // Array de tokens
+            result.tokens.refreshToken,
+            result.userInfo
+          )
+        }
+        // Format legacy : { accessToken, refreshToken, expiresIn }
+        else if (result.tokens.accessToken && result.tokens.expiresIn) {
+          await this.tokenManager.setTokens(
+            result.tokens.accessToken,
+            result.tokens.refreshToken,
+            result.tokens.expiresIn,
+            result.userInfo
+          )
+        }
       } else {
         await this.tokenManager.clear()
         this.tokenManager.userInfo = result.userInfo || null
       }
+      
       this.activeProvider = provider
       this._isAuthenticated = true
       this._currentUser = result.userInfo

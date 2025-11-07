@@ -81,17 +81,15 @@
     }
   }
 
-  function getUserAvatar(user) {
-    // Pour les URLs d'images, on ne retourne que l'emoji par défaut
-    // L'image sera gérée séparément
-    return '👤'
-  }
-
   function getUserAvatarImage(user) {
     if (user?.avatar && (user.avatar.startsWith('http') || user.avatar.startsWith('blob:'))) {
       return user.avatar
     }
     return null
+  }
+  
+  function hasAvatar(user) {
+    return getUserAvatarImage(user) !== null
   }
 
   function getUserDisplayName(user) {
@@ -114,11 +112,9 @@
       id={buttonId}
       bind:this={menuButton}
     >
-      <span class="user-avatar">
+      <span class="user-avatar" class:has-image={hasAvatar(authStore.currentUser)}>
         {#if getUserAvatarImage(authStore.currentUser)}
           <img src={getUserAvatarImage(authStore.currentUser)} alt={`[${getUserDisplayName(authStore.currentUser)[0]}]`} />
-        {:else}
-          {getUserAvatar(authStore.currentUser)}
         {/if}
       </span>
       <span class="username">{getUserDisplayName(authStore.currentUser)}</span>
@@ -128,11 +124,9 @@
     {#if userMenu}
       <div class="user-menu" role="menu" id={menuId} aria-labelledby={buttonId}>
         <div class="user-info">
-          <div class="user-avatar-large">
+          <div class="user-avatar-large" class:has-image={hasAvatar(authStore.currentUser)}>
             {#if getUserAvatarImage(authStore.currentUser)}
               <img src={getUserAvatarImage(authStore.currentUser)} alt={`Avatar de ${getUserDisplayName(authStore.currentUser)}`} />
-            {:else}
-              {getUserAvatar(authStore.currentUser)}
             {/if}
           </div>
           <div class="user-details">
@@ -200,12 +194,16 @@
   }
 
   .user-avatar {
-    font-size: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 16px;
     height: 16px;
+  }
+  
+  /* Masquer complètement l'avatar si pas d'image */
+  .user-avatar:not(.has-image) {
+    display: none;
   }
 
   .user-avatar img {
@@ -250,14 +248,18 @@
   }
 
   .user-avatar-large {
-    font-size: 24px;
     width: 32px;
     height: 32px;
-    background: #007acc;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    background: #007acc;
+  }
+  
+  /* Masquer complètement l'avatar large si pas d'image */
+  .user-avatar-large:not(.has-image) {
+    display: none;
   }
 
   .user-avatar-large img {

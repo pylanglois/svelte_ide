@@ -44,11 +44,40 @@ function sanitizeToken(token) {
   return `${token.slice(0, 4)}…${token.slice(-4)}`
 }
 
+/**
+ * Décode un JWT pour extraire son audience (sans validation de signature)
+ * @param {string} token - Le JWT
+ * @returns {string|null} L'audience (aud claim) ou null
+ */
+function extractAudience(token) {
+  if (!token || typeof token !== 'string') {
+    return null
+  }
+  
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) {
+      return null
+    }
+    
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return payload.aud || null
+  } catch (error) {
+    authWarn('Failed to extract audience from token', error)
+    return null
+  }
+}
+
 export class TokenManager {
   constructor() {
+    // LEGACY : Compatibilité descendante (premier token ou défaut)
     this.accessToken = null
-    this.refreshToken = null
     this.tokenExpiry = null
+    
+    // NOUVEAU : Multi-tokens par audience
+    this.tokens = new Map() // audience → { accessToken, expiry, scopes }
+    
+    this.refreshToken = null
     this.userInfo = null
     this.refreshTimer = null
     this.autoRefreshHandler = null
@@ -93,22 +122,49 @@ export class TokenManager {
 
       const data = JSON.parse(decrypted)
       
-      // Restaurer access token si valide
-      if (data.expiry && new Date(data.expiry) > new Date()) {
+      // NOUVEAU : Restaurer multi-tokens si présents
+      if (data.tokens && typeof data.tokens === 'object') {
+        for (const [audience, tokenData] of Object.entries(data.tokens)) {
+          if (tokenData.expiry && new Date(tokenData.expiry) > new Date()) {
+            this.tokens.set(audience, {
+              accessToken: tokenData.accessToken,
+              expiry: new Date(tokenData.expiry),
+              scopes: tokenData.scopes || []
+            })
+          }
+        }
+        
+        // Maintenir compatibilité : premier token devient le token par défaut
+        const firstToken = this.tokens.values().next().value
+        if (firstToken) {
+          this.accessToken = firstToken.accessToken
+          this.tokenExpiry = firstToken.expiry
+        }
+      }
+      // LEGACY : Format ancien (single token)
+      else if (data.expiry && new Date(data.expiry) > new Date()) {
         this.accessToken = data.accessToken
         this.tokenExpiry = new Date(data.expiry)
-        this.userInfo = data.userInfo || null
-
-        if (this.auditAccess) {
-          authDebug('Tokens restored from storage', {
-            persistence: this.persistence,
-            expiry: this.tokenExpiry.toISOString()
+        
+        // Tenter d'extraire l'audience pour migration
+        const aud = extractAudience(data.accessToken)
+        if (aud) {
+          this.tokens.set(aud, {
+            accessToken: data.accessToken,
+            expiry: this.tokenExpiry,
+            scopes: []
           })
         }
-      } else if (data.userInfo) {
-        // Access token expiré mais on garde userInfo pour tenter un refresh
-        this.userInfo = data.userInfo
-        authDebug('Access token expired, userInfo retained for potential refresh')
+      }
+      
+      this.userInfo = data.userInfo || null
+
+      if (this.auditAccess && this.tokenExpiry) {
+        authDebug('Tokens restored from storage', {
+          persistence: this.persistence,
+          tokenCount: this.tokens.size,
+          expiry: this.tokenExpiry.toISOString()
+        })
       }
 
       // Restaurer refresh token (peut être dans un storage différent)
@@ -142,15 +198,27 @@ export class TokenManager {
       return
     }
 
-    if (!this.accessToken || !this.tokenExpiry) {
+    if (this.tokens.size === 0 || !this.accessToken || !this.tokenExpiry) {
       await this.clearStorage()
       return
     }
 
+    // Sérialiser les multi-tokens
+    const tokensObj = {}
+    for (const [audience, tokenData] of this.tokens) {
+      tokensObj[audience] = {
+        accessToken: tokenData.accessToken,
+        expiry: tokenData.expiry.toISOString(),
+        scopes: tokenData.scopes
+      }
+    }
+
     const data = {
+      tokens: tokensObj,  // NOUVEAU format
+      // LEGACY : compatibilité descendante
       accessToken: this.accessToken,
-      refreshToken: this.refreshToken,
       expiry: this.tokenExpiry.toISOString(),
+      refreshToken: this.refreshToken,
       userInfo: this.userInfo
     }
 
@@ -197,9 +265,92 @@ export class TokenManager {
     this.refreshToken = null
     this.tokenExpiry = null
     this.userInfo = null
+    this.tokens.clear() // Nettoyer multi-tokens
   }
 
-  async setTokens(accessToken, refreshToken, expiresIn, userInfo = null) {
+  /**
+   * NOUVEAU : Enregistrer plusieurs tokens (un par audience)
+   * @param {Array|Object} tokensData - Soit un tableau [{accessToken, audience, scopes, expiresIn}], soit un objet unique
+   * @param {string} refreshToken - Refresh token (optionnel)
+   * @param {Object} userInfo - Infos utilisateur (optionnel)
+   */
+  async setTokens(tokensData, refreshToken = null, userInfo = null) {
+    await this.ready
+
+    // Format legacy : {accessToken, refreshToken, expiresIn}
+    if (tokensData.accessToken && tokensData.expiresIn) {
+      return this.setTokensLegacy(tokensData.accessToken, refreshToken || tokensData.refreshToken, tokensData.expiresIn, userInfo)
+    }
+
+    // Nouveau format : array de tokens
+    if (!Array.isArray(tokensData) || tokensData.length === 0) {
+      await this.clear()
+      return
+    }
+
+    this.tokens.clear()
+    let firstToken = null
+
+    for (const tokenInfo of tokensData) {
+      const { accessToken, audience, scopes = [], expiresIn } = tokenInfo
+      
+      if (!accessToken || !expiresIn) {
+        authWarn('Invalid token data, skipping', { hasToken: !!accessToken, hasExpiry: !!expiresIn })
+        continue
+      }
+
+      // Extraire l'audience si non fournie
+      const aud = audience || extractAudience(accessToken)
+      if (!aud) {
+        authWarn('Cannot determine audience for token, skipping')
+        continue
+      }
+
+      const expiry = new Date(Date.now() + expiresIn * 1000)
+      this.tokens.set(aud, {
+        accessToken,
+        expiry,
+        scopes
+      })
+
+      // Le premier token devient le token par défaut (compatibilité)
+      if (!firstToken) {
+        firstToken = { accessToken, expiry }
+      }
+
+      authDebug('Token registered', {
+        audience: aud,
+        scopes,
+        expiresAt: expiry.toISOString()
+      })
+    }
+
+    // Maintenir compatibilité : premier token = default
+    if (firstToken) {
+      this.accessToken = firstToken.accessToken
+      this.tokenExpiry = firstToken.expiry
+    }
+
+    this.refreshToken = refreshToken || null
+    this.userInfo = userInfo || null
+    this.refreshAttempts = 0
+
+    if (this.auditAccess) {
+      authDebug('Multi-tokens updated', {
+        tokenCount: this.tokens.size,
+        audiences: Array.from(this.tokens.keys()),
+        hasRefreshToken: Boolean(this.refreshToken)
+      })
+    }
+
+    await this.saveToStorage()
+    this.setupAutoRefresh()
+  }
+
+  /**
+   * LEGACY : Format ancien (single token)
+   */
+  async setTokensLegacy(accessToken, refreshToken, expiresIn, userInfo = null) {
     await this.ready
 
     if (!accessToken || !expiresIn) {
@@ -211,14 +362,24 @@ export class TokenManager {
     this.refreshToken = refreshToken || null
     this.tokenExpiry = new Date(Date.now() + expiresIn * 1000)
     this.userInfo = userInfo || null
-    this.refreshAttempts = 0 // Reset compteur de tentatives sur nouveau token
+    this.refreshAttempts = 0
+
+    // Tenter d'extraire l'audience pour migration vers multi-tokens
+    const aud = extractAudience(accessToken)
+    if (aud) {
+      this.tokens.set(aud, {
+        accessToken,
+        expiry: this.tokenExpiry,
+        scopes: []
+      })
+    }
 
     if (this.auditAccess) {
-      authDebug('Tokens updated', {
+      authDebug('Tokens updated (legacy format)', {
         accessToken: sanitizeToken(this.accessToken),
         hasRefreshToken: Boolean(this.refreshToken),
         expiresAt: this.tokenExpiry.toISOString(),
-        refreshStorage: this.refreshTokenPersistence
+        audience: aud || 'unknown'
       })
     }
 
@@ -226,23 +387,133 @@ export class TokenManager {
     this.setupAutoRefresh()
   }
 
-  getAccessToken() {
-    if (!this.isReady || !this.accessToken || !this.tokenExpiry) {
+  /**
+   * Récupère un access token
+   * @param {string|Array<string>} [audienceOrScopes] - Audience cible ou liste de scopes
+   * @returns {string|null} Le token correspondant ou null
+   * 
+   * Exemples:
+   *   getAccessToken() // Token par défaut (premier ou Graph)
+   *   getAccessToken('api://436fddc9-...') // Token pour cette audience
+   *   getAccessToken(['User.Read', 'Mail.Read']) // Token ayant ces scopes
+   *   getAccessToken('access_as_user') // Token ayant ce scope (recherche partielle)
+   */
+  getAccessToken(audienceOrScopes = null) {
+    if (!this.isReady) {
       return null
     }
 
-    if (new Date() >= this.tokenExpiry) {
+    // Cas 1 : Pas de paramètre → token par défaut (compatibilité)
+    if (!audienceOrScopes) {
+      if (!this.accessToken || !this.tokenExpiry || new Date() >= this.tokenExpiry) {
+        return null
+      }
+
+      if (this.auditAccess) {
+        authDebug('Access token read (default)', {
+          accessToken: sanitizeToken(this.accessToken),
+          expiresAt: this.tokenExpiry.toISOString()
+        })
+      }
+
+      return this.accessToken
+    }
+
+    // Cas 2 : Audience exacte fournie
+    if (typeof audienceOrScopes === 'string') {
+      // Recherche exacte
+      if (this.tokens.has(audienceOrScopes)) {
+        const tokenData = this.tokens.get(audienceOrScopes)
+        if (new Date() >= tokenData.expiry) {
+          return null
+        }
+
+        if (this.auditAccess) {
+          authDebug('Access token read (by audience)', {
+            audience: audienceOrScopes,
+            accessToken: sanitizeToken(tokenData.accessToken),
+            expiresAt: tokenData.expiry.toISOString()
+          })
+        }
+
+        return tokenData.accessToken
+      }
+
+      // Recherche partielle dans les audiences (ex: "access_as_user" match "api://xxx/access_as_user")
+      for (const [aud, tokenData] of this.tokens) {
+        if (aud.includes(audienceOrScopes)) {
+          if (new Date() >= tokenData.expiry) {
+            continue
+          }
+
+          if (this.auditAccess) {
+            authDebug('Access token read (by partial audience match)', {
+              requested: audienceOrScopes,
+              matched: aud,
+              accessToken: sanitizeToken(tokenData.accessToken)
+            })
+          }
+
+          return tokenData.accessToken
+        }
+      }
+
+      // Recherche dans les scopes
+      for (const [aud, tokenData] of this.tokens) {
+        if (tokenData.scopes.includes(audienceOrScopes) || tokenData.scopes.some(s => s.includes(audienceOrScopes))) {
+          if (new Date() >= tokenData.expiry) {
+            continue
+          }
+
+          if (this.auditAccess) {
+            authDebug('Access token read (by scope)', {
+              requestedScope: audienceOrScopes,
+              audience: aud,
+              accessToken: sanitizeToken(tokenData.accessToken)
+            })
+          }
+
+          return tokenData.accessToken
+        }
+      }
+
+      authWarn('No token found for audience or scope', { requested: audienceOrScopes })
       return null
     }
 
-    if (this.auditAccess) {
-      authDebug('Access token read', {
-        accessToken: sanitizeToken(this.accessToken),
-        expiresAt: this.tokenExpiry.toISOString()
-      })
+    // Cas 3 : Liste de scopes fournie
+    if (Array.isArray(audienceOrScopes)) {
+      for (const [aud, tokenData] of this.tokens) {
+        // Vérifier si le token a TOUS les scopes demandés
+        const hasAllScopes = audienceOrScopes.every(requestedScope =>
+          tokenData.scopes.some(tokenScope => 
+            tokenScope === requestedScope || tokenScope.includes(requestedScope)
+          )
+        )
+
+        if (hasAllScopes) {
+          if (new Date() >= tokenData.expiry) {
+            continue
+          }
+
+          if (this.auditAccess) {
+            authDebug('Access token read (by scopes list)', {
+              requestedScopes: audienceOrScopes,
+              audience: aud,
+              accessToken: sanitizeToken(tokenData.accessToken)
+            })
+          }
+
+          return tokenData.accessToken
+        }
+      }
+
+      authWarn('No token found with all requested scopes', { requested: audienceOrScopes })
+      return null
     }
 
-    return this.accessToken
+    authWarn('Invalid parameter type for getAccessToken', { type: typeof audienceOrScopes })
+    return null
   }
 
   getRefreshToken() {
@@ -396,6 +667,7 @@ export class TokenManager {
       this.refreshTimer = null
     }
 
+    this.tokens.clear() // Nettoyer multi-tokens
     this.refreshAttempts = 0
     await this.clearStorage()
   }
