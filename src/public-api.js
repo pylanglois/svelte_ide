@@ -5,6 +5,7 @@ export { default as StatusBarClockItem } from './components/layout/chrome/status
 export { default as StatusBarIndexedDBUsageItem } from './components/layout/chrome/statusbar/IndexedDBUsageItem.svelte'
 export { default as StatusBarMessageItem } from './components/layout/chrome/statusbar/StatusMessageItem.svelte'
 export { default as ReAuthModal } from './components/system/ReAuthModal.svelte'
+export { avatarCacheService } from './core/auth/AvatarCacheService.svelte.js'
 export { getTokenSecurityConfig } from './core/auth/tokenSecurityConfig.svelte.js'
 export { APP_KEY, namespacedKey } from './core/config/appKey.js'
 export { eventBus } from './core/EventBusService.svelte.js'

@@ -1,6 +1,7 @@
 import { authDebug, authError, authWarn } from '@/core/auth/authLogging.svelte.js'
 import { deriveEncryptionKey } from '@/core/auth/EncryptionKeyDerivation.svelte.js'
 import { TokenManager } from '@/core/auth/TokenManager.svelte.js'
+import { avatarCacheService } from '@/core/auth/AvatarCacheService.svelte.js'
 
 export class AuthManager {
   constructor() {
@@ -270,6 +271,8 @@ export class AuthManager {
 
     authDebug('Starting logout')
     
+    const userId = this._currentUser?.sub
+    
     try {
       if (this.activeProvider) {
         await this.activeProvider.logout()
@@ -285,6 +288,12 @@ export class AuthManager {
     
     // Effacer la clé de chiffrement lors du logout
     this._clearEncryptionKey()
+    
+    // Nettoyer le cache d'avatar de l'utilisateur déconnecté
+    if (userId) {
+      await avatarCacheService.deleteAvatar(userId)
+      authDebug('Avatar cache cleared for user')
+    }
     
     authDebug('Logout completed')
     

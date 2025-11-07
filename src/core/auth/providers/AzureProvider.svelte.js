@@ -1,5 +1,6 @@
 import { AuthProvider } from '@/core/auth/AuthProvider.svelte.js'
 import { authDebug, authWarn, authError } from '@/core/auth/authLogging.svelte.js'
+import { avatarCacheService } from '@/core/auth/AvatarCacheService.svelte.js'
 
 export class AzureProvider extends AuthProvider {
   constructor(config) {
@@ -180,25 +181,42 @@ export class AzureProvider extends AuthProvider {
     }
 
     const userData = await response.json()
+    const userId = userData.id // Utilisé comme clé de cache
     
-    let avatar = null
-    try {
-      const photoResponse = await fetch('https://graph.microsoft.com/v1.0/me/photo/$value', {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
+    // Essayer de récupérer l'avatar depuis le cache
+    let avatar = await avatarCacheService.getAvatar(userId)
+    
+    if (avatar) {
+      authDebug('Azure user avatar restored from cache')
+    } else {
+      // Pas en cache ou expiré → télécharger depuis Graph API
+      try {
+        const photoResponse = await fetch('https://graph.microsoft.com/v1.0/me/photo/$value', {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        })
+        
+        if (photoResponse.ok) {
+          const photoBlob = await photoResponse.blob()
+          // Sauvegarder dans le cache et obtenir l'URL blob
+          avatar = await avatarCacheService.saveAvatar(userId, photoBlob)
+          authDebug('Azure user avatar downloaded and cached')
+        } else {
+          authDebug('Azure user profile photo unavailable')
         }
-      })
-      
-      if (photoResponse.ok) {
-        const photoBlob = await photoResponse.blob()
-        avatar = URL.createObjectURL(photoBlob)
+      } catch (photoError) {
+        authDebug('Azure user profile photo unavailable', photoError)
       }
-    } catch (photoError) {
-      authDebug('Azure user profile photo unavailable')
     }
     
+    // Azure Graph API retourne 'id' (correspond au 'oid' du JWT token)
+    // Le standard OAuth2/OIDC utilise 'sub' (subject) pour identifier l'utilisateur
+    // On normalise pour compatibilité avec EncryptionKeyDerivation et autres services
+    // Note : userData.id (Graph API) === token.oid (JWT) - même valeur, nom différent
     return {
-      id: userData.id,
+      sub: userData.id,  // Standard OAuth2/OIDC : 'sub' = subject (user unique identifier)
+      id: userData.id,   // Gardé pour compatibilité descendante
       email: userData.mail || userData.userPrincipalName,
       name: userData.displayName,
       provider: 'azure',

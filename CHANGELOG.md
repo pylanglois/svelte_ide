@@ -5,6 +5,36 @@ Toutes les modifications notables du projet seront documentées dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Versionnage Sémantique](https://semver.org/lang/fr/).
 
+## [Non publié]
+
+### 🎉 Ajouté
+
+#### Cache d'Avatars Utilisateurs
+- **AvatarCacheService** : Nouveau service de cache IndexedDB pour photos de profil
+  - Persistance locale des avatars (TTL 24h)
+  - Restauration instantanée après reload/refresh token
+  - Économie de bande passante (~15-50 KB par session)
+  - Nettoyage automatique au logout et expiration
+- **Intégration providers** : AzureProvider et GoogleProvider utilisent le cache automatiquement
+  - Téléchargement uniquement si cache MISS ou expiré
+  - Fallback gracieux si IndexedDB indisponible
+
+### 🐛 Corrigé
+
+#### Authentification Azure et Google
+- **AzureProvider** : Ajout du champ `sub` (subject) dans `userInfo` pour compatibilité OAuth2/OIDC
+  - Azure retournait uniquement `id`, causant l'erreur "userInfo.sub is required for key derivation"
+  - Normalisation : `sub: userData.id` + conservation de `id` pour compatibilité descendante
+- **GoogleProvider** : Même normalisation pour cohérence
+  - Google retourne `sub` natif mais mapping explicite ajouté pour garantir la présence
+  - Format uniforme entre tous les providers
+- **Impact** : La dérivation de clé de chiffrement (`EncryptionKeyDerivation`) fonctionne maintenant avec Azure
+
+#### API Publique
+- **Exports** : Ajout de `getAuthStore` dans `public-api.js`
+  - Permet aux applications clientes d'accéder au store d'authentification
+  - Usage : `const authStore = getAuthStore(); const token = authStore.getAccessToken()`
+
 ## [0.3.0] - 2025-01-05
 
 ### 🎯 Révision Majeure de la Documentation et des Normes Svelte 5

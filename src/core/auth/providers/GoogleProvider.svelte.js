@@ -1,5 +1,6 @@
 import { AuthProvider } from '@/core/auth/AuthProvider.svelte.js'
 import { authDebug, authWarn, authError } from '@/core/auth/authLogging.svelte.js'
+import { avatarCacheService } from '@/core/auth/AvatarCacheService.svelte.js'
 
 export class GoogleProvider extends AuthProvider {
   constructor(config) {
@@ -341,15 +342,51 @@ export class GoogleProvider extends AuthProvider {
     
     authDebug('Raw Google user data received', {
       hasId: Boolean(userData.sub || userData.id),
-      hasEmail: Boolean(userData.email)
+      hasEmail: Boolean(userData.email),
+      hasPicture: Boolean(userData.picture)
     })
     
+    const userId = userData.sub || userData.id
+    let avatar = null
+    
+    // Google retourne directement une URL d'image (pas besoin de télécharger)
+    // Mais on peut la mettre en cache pour réduire les requêtes réseau
+    if (userData.picture) {
+      // Essayer de récupérer depuis le cache
+      avatar = await avatarCacheService.getAvatar(userId)
+      
+      if (avatar) {
+        authDebug('Google user avatar restored from cache')
+      } else {
+        // Télécharger l'image et la mettre en cache
+        try {
+          const pictureResponse = await fetch(userData.picture)
+          if (pictureResponse.ok) {
+            const pictureBlob = await pictureResponse.blob()
+            avatar = await avatarCacheService.saveAvatar(userId, pictureBlob)
+            authDebug('Google user avatar downloaded and cached')
+          } else {
+            // Fallback: utiliser l'URL directe si téléchargement échoue
+            avatar = userData.picture
+            authDebug('Google avatar fetch failed, using direct URL')
+          }
+        } catch (error) {
+          // Fallback: utiliser l'URL directe
+          avatar = userData.picture
+          authDebug('Google avatar download failed, using direct URL', error)
+        }
+      }
+    }
+    
+    // Google retourne 'sub' (subject) selon le standard OAuth2/OIDC
+    // On normalise pour garantir que 'sub' est toujours présent
     return {
-      id: userData.sub || userData.id,
+      sub: userId,         // Standard OAuth2/OIDC
+      id: userId,          // Compatibilité descendante
       email: userData.email,
       name: userData.name,
       provider: 'google',
-      avatar: userData.picture
+      avatar: avatar
     }
   }
 
