@@ -1,5 +1,5 @@
+import { authDebug, authError, authWarn } from '@/core/auth/authLogging.svelte.js'
 import { AuthProvider } from '@/core/auth/AuthProvider.svelte.js'
-import { authDebug, authWarn, authError } from '@/core/auth/authLogging.svelte.js'
 import { avatarCacheService } from '@/core/auth/AvatarCacheService.svelte.js'
 
 export class AzureProvider extends AuthProvider {

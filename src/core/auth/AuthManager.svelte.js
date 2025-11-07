@@ -1,7 +1,7 @@
 import { authDebug, authError, authWarn } from '@/core/auth/authLogging.svelte.js'
+import { avatarCacheService } from '@/core/auth/AvatarCacheService.svelte.js'
 import { deriveEncryptionKey } from '@/core/auth/EncryptionKeyDerivation.svelte.js'
 import { TokenManager } from '@/core/auth/TokenManager.svelte.js'
-import { avatarCacheService } from '@/core/auth/AvatarCacheService.svelte.js'
 
 export class AuthManager {
   constructor() {
