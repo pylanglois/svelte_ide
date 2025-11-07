@@ -16,11 +16,12 @@ export { statusBarService } from './core/StatusBarService.svelte.js'
 export { ConsoleTool, NotificationsTool } from './core/SystemTools.js'
 export { Tool } from './core/Tool.svelte.js'
 export { toolManager } from './core/ToolManager.svelte.js'
+export { getAuthStore } from './stores/authStore.svelte.js'
 export { ideStore } from './stores/ideStore.svelte.js'
 
 // IndexedDB persistance sécurisée
 export { IndexedDBPersister } from './core/persistence/IndexedDBPersister.svelte.js'
-export { IndexedDBService, getIndexedDBService, indexedDBService } from './core/persistence/IndexedDBService.svelte.js'
+export { getIndexedDBService, IndexedDBService, indexedDBService } from './core/persistence/IndexedDBService.svelte.js'
 
 // Dérivation de clé de chiffrement
 export {
