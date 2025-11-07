@@ -1,17 +1,11 @@
-import { authDebug, authError, authWarn } from '@/core/auth/authLogging.svelte.js'
 import { AuthProvider } from '@/core/auth/AuthProvider.svelte.js'
-import { avatarCacheService } from '@/core/auth/AvatarCacheService.svelte.js'
+import { authDebug, authWarn, authError } from '@/core/auth/authLogging.svelte.js'
 
 export class AzureProvider extends AuthProvider {
   constructor(config) {
     super('azure', 'Microsoft Azure AD', config)
     this.authUrl = 'https://login.microsoftonline.com'
-    // Read scopes from env if present, else fallback to default
-    let envScope = null
-    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_AZURE_SCOPES) {
-      envScope = String(import.meta.env.VITE_AZURE_SCOPES).trim()
-    }
-    this.scope = envScope && envScope.length > 0 ? envScope : 'openid profile email User.Read'
+    this.scope = 'openid profile email User.Read'
   }
 
   requiredConfigKeys() {
@@ -27,7 +21,7 @@ export class AzureProvider extends AuthProvider {
     const codeVerifier = this.generateCodeVerifier()
     const codeChallenge = await this.generateCodeChallenge(codeVerifier)
     
-    this.storeState(state)
+    sessionStorage.setItem(this.getStorageKey('state'), state)
     sessionStorage.setItem(this.getStorageKey('code_verifier'), codeVerifier)
 
     const params = new URLSearchParams({
@@ -79,25 +73,17 @@ export class AzureProvider extends AuthProvider {
       }
     }
 
-    const storedState = this.consumeStoredState()
+    const storedState = sessionStorage.getItem(this.getStorageKey('state'))
     const codeVerifier = sessionStorage.getItem(this.getStorageKey('code_verifier'))
     
     authDebug('Azure state validation', {
-      hasUrlState: !!state,
+      hasState: !!state,
       hasStoredState: !!storedState,
       stateMatch: state && storedState ? state === storedState : false,
       hasCodeVerifier: !!codeVerifier
     })
 
-    if (!state || !storedState) {
-      authWarn('Azure state validation failed: missing or expired state')
-      return {
-        success: false,
-        error: 'Invalid or expired state parameter - possible CSRF attack'
-      }
-    }
-
-    if (state !== storedState) {
+    if (!state || state !== storedState) {
       authWarn('Azure state mismatch', { received: state, stored: storedState })
       return {
         success: false,
@@ -113,6 +99,7 @@ export class AzureProvider extends AuthProvider {
       }
     }
 
+    sessionStorage.removeItem(this.getStorageKey('state'))
     sessionStorage.removeItem(this.getStorageKey('code_verifier'))
 
     try {
@@ -193,42 +180,25 @@ export class AzureProvider extends AuthProvider {
     }
 
     const userData = await response.json()
-    const userId = userData.id // Utilisé comme clé de cache
     
-    // Essayer de récupérer l'avatar depuis le cache
-    let avatar = await avatarCacheService.getAvatar(userId)
-    
-    if (avatar) {
-      authDebug('Azure user avatar restored from cache')
-    } else {
-      // Pas en cache ou expiré → télécharger depuis Graph API
-      try {
-        const photoResponse = await fetch('https://graph.microsoft.com/v1.0/me/photo/$value', {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
-        })
-        
-        if (photoResponse.ok) {
-          const photoBlob = await photoResponse.blob()
-          // Sauvegarder dans le cache et obtenir l'URL blob
-          avatar = await avatarCacheService.saveAvatar(userId, photoBlob)
-          authDebug('Azure user avatar downloaded and cached')
-        } else {
-          authDebug('Azure user profile photo unavailable')
+    let avatar = null
+    try {
+      const photoResponse = await fetch('https://graph.microsoft.com/v1.0/me/photo/$value', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
         }
-      } catch (photoError) {
-        authDebug('Azure user profile photo unavailable', photoError)
+      })
+      
+      if (photoResponse.ok) {
+        const photoBlob = await photoResponse.blob()
+        avatar = URL.createObjectURL(photoBlob)
       }
+    } catch (photoError) {
+      authDebug('Azure user profile photo unavailable')
     }
     
-    // Azure Graph API retourne 'id' (correspond au 'oid' du JWT token)
-    // Le standard OAuth2/OIDC utilise 'sub' (subject) pour identifier l'utilisateur
-    // On normalise pour compatibilité avec EncryptionKeyDerivation et autres services
-    // Note : userData.id (Graph API) === token.oid (JWT) - même valeur, nom différent
     return {
-      sub: userData.id,  // Standard OAuth2/OIDC : 'sub' = subject (user unique identifier)
-      id: userData.id,   // Gardé pour compatibilité descendante
+      id: userData.id,
       email: userData.mail || userData.userPrincipalName,
       name: userData.displayName,
       provider: 'azure',
