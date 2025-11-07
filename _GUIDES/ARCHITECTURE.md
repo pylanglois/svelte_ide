@@ -187,6 +187,7 @@ Deux parcours sont supportés pour l'authentification Google : un flux 100 % SPA
 - En production (`import.meta.env.PROD`), `VITE_AUTH_PROVIDERS` doit être défini et ne peut contenir `mock`. Le `MockProvider` reste disponible uniquement pour le développement.
 
 ## Principes transverses
+- Toute documentation supplémentaire doit se trouver sous le dossier _DOCS/
 - Observer en priorité les conventions déjà présentes dans la base de code avant d'appliquer de nouvelles règles
 - Respecter la règle de langage : code et noms de fichiers en anglais, commentaires et libellés UI en français
 - Favoriser le principe KISS : écrire le minimum de code nécessaire, éviter les couches d'abstraction inutiles et n'introduire qu'une classe ou un module supplémentaire apportant un bénéfice clair
