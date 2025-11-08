@@ -166,6 +166,22 @@ export class TokenManager {
           expiry: this.tokenExpiry.toISOString()
         })
       }
+      
+      // 🔍 LOGGING : Afficher les tokens restaurés en DEV
+      if (import.meta.env.DEV && this.tokens.size > 0) {
+        console.group('🔄 Multi-Tokens Restaurés du Storage')
+        console.log('Nombre de tokens:', this.tokens.size)
+        console.table(
+          Array.from(this.tokens.entries()).map(([audience, tokenData]) => ({
+            Audience: audience,
+            'Token (tronqué)': tokenData.accessToken.substring(0, 30) + '...',
+            Scopes: tokenData.scopes.join(', '),
+            'Expire le': tokenData.expiry.toLocaleString('fr-CA'),
+            'Est valide': new Date() < tokenData.expiry ? '✅' : '❌'
+          }))
+        )
+        console.groupEnd()
+      }
 
       // Restaurer refresh token (peut être dans un storage différent)
       if (data.refreshToken) {
@@ -415,6 +431,11 @@ export class TokenManager {
           expiresAt: this.tokenExpiry.toISOString()
         })
       }
+      
+      // 🔍 LOGGING DEV
+      if (import.meta.env.DEV) {
+        console.log('🎫 getAccessToken() → Token par défaut:', sanitizeToken(this.accessToken))
+      }
 
       return this.accessToken
     }
@@ -435,6 +456,11 @@ export class TokenManager {
             expiresAt: tokenData.expiry.toISOString()
           })
         }
+        
+        // 🔍 LOGGING DEV
+        if (import.meta.env.DEV) {
+          console.log(`🎫 getAccessToken('${audienceOrScopes}') → Audience exacte:`, sanitizeToken(tokenData.accessToken))
+        }
 
         return tokenData.accessToken
       }
@@ -452,6 +478,11 @@ export class TokenManager {
               matched: aud,
               accessToken: sanitizeToken(tokenData.accessToken)
             })
+          }
+          
+          // 🔍 LOGGING DEV
+          if (import.meta.env.DEV) {
+            console.log(`🎫 getAccessToken('${audienceOrScopes}') → Match partiel audience '${aud}':`, sanitizeToken(tokenData.accessToken))
           }
 
           return tokenData.accessToken
@@ -471,6 +502,11 @@ export class TokenManager {
               audience: aud,
               accessToken: sanitizeToken(tokenData.accessToken)
             })
+          }
+          
+          // 🔍 LOGGING DEV
+          if (import.meta.env.DEV) {
+            console.log(`🎫 getAccessToken('${audienceOrScopes}') → Match scope dans '${aud}':`, sanitizeToken(tokenData.accessToken))
           }
 
           return tokenData.accessToken
@@ -502,6 +538,11 @@ export class TokenManager {
               audience: aud,
               accessToken: sanitizeToken(tokenData.accessToken)
             })
+          }
+          
+          // 🔍 LOGGING DEV
+          if (import.meta.env.DEV) {
+            console.log(`🎫 getAccessToken([${audienceOrScopes.join(', ')}]) → Match tous scopes dans '${aud}':`, sanitizeToken(tokenData.accessToken))
           }
 
           return tokenData.accessToken

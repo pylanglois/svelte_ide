@@ -34,12 +34,14 @@ function initializeAuthProviders(authManager) {
   if (providersToProcess.includes('azure')) {
     const azureConfig = {
       clientId: import.meta.env.VITE_AZURE_CLIENT_ID,
-      tenantId: import.meta.env.VITE_AZURE_TENANT_ID
+      tenantId: import.meta.env.VITE_AZURE_TENANT_ID,
+      scopes: import.meta.env.VITE_AZURE_SCOPES
     }
     
     authDebug('Azure config check', { 
       hasClientId: !!azureConfig.clientId, 
-      hasTenantId: !!azureConfig.tenantId 
+      hasTenantId: !!azureConfig.tenantId,
+      scopes: azureConfig.scopes
     })
     
     if (azureConfig.clientId && azureConfig.tenantId) {

@@ -5,7 +5,8 @@ export class AzureProvider extends AuthProvider {
   constructor(config) {
     super('azure', 'Microsoft Azure AD', config)
     this.authUrl = 'https://login.microsoftonline.com'
-    this.scope = 'openid profile email User.Read'
+    // Utiliser les scopes de la config, sinon fallback sur les scopes minimaux
+    this.scope = config.scopes || 'openid profile email User.Read'
   }
 
   requiredConfigKeys() {
@@ -135,6 +136,58 @@ export class AzureProvider extends AuthProvider {
         scopes: scopesList,
         expiresIn: tokenData.expires_in
       })
+      
+      // 🔄 WORKAROUND : Azure retourne un seul token même avec plusieurs scopes
+      // Si le token reçu n'est pas pour notre API custom, on utilise le refresh token
+      // pour obtenir un token avec la bonne audience
+      const customApiScopes = this.scope.split(' ').filter(s => s.startsWith('api://'))
+      
+      authDebug('Checking for custom API scopes', {
+        allScopes: this.scope,
+        customApiScopes,
+        customApiScopesCount: customApiScopes.length,
+        currentAudience: audience
+      })
+      
+      if (customApiScopes.length > 0) {
+        const expectedAudience = customApiScopes[0].split('/').slice(0, 3).join('/')
+        
+        authDebug('Evaluating if refresh is needed', {
+          audience,
+          expectedAudience,
+          isGraphAPI: audience === '00000003-0000-0000-c000-000000000000',
+          needsRefresh: audience !== expectedAudience && audience === '00000003-0000-0000-c000-000000000000'
+        })
+        
+        if (audience !== expectedAudience && audience === '00000003-0000-0000-c000-000000000000') {
+          // Le token reçu est pour Graph API, pas pour notre API
+          authDebug('Token received is for Graph API, requesting custom API token with refresh', {
+            currentAudience: audience,
+            expectedAudience: expectedAudience
+          })
+          
+          try {
+            // Utiliser le refresh token immédiatement pour obtenir un token avec les bons scopes
+            const customTokenData = await this.refreshTokenWithScopes(tokenData.refresh_token, customApiScopes.join(' '))
+            if (customTokenData) {
+              const customAudience = this.extractAudienceFromToken(customTokenData.access_token)
+              accessTokens.push({
+                accessToken: customTokenData.access_token,
+                audience: customAudience,
+                scopes: customApiScopes,
+                expiresIn: customTokenData.expires_in
+              })
+              authDebug('Custom API token obtained via refresh', {
+                audience: customAudience,
+                scopes: customApiScopes
+              })
+            }
+          } catch (refreshError) {
+            authWarn('Failed to obtain custom API token via refresh', refreshError)
+            // Non-bloquant : on continue avec le token Graph
+          }
+        }
+      }
       
       authDebug('Azure callback processed successfully', {
         tokenCount: accessTokens.length,
@@ -322,5 +375,51 @@ export class AzureProvider extends AuthProvider {
     const logoutUrl = `${this.authUrl}/${this.config.tenantId}/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.origin)}`
     window.location.href = logoutUrl
     return { success: true }
+  }
+
+  /**
+   * Utilise le refresh token pour obtenir un access token avec des scopes spécifiques
+   * C'est la méthode recommandée pour obtenir plusieurs tokens dans une SPA
+   * @param {string} refreshToken - Le refresh token obtenu lors du login initial
+   * @param {string} scopes - Les scopes spécifiques à demander
+   * @returns {Promise<{access_token: string, expires_in: number}>}
+   */
+  async refreshTokenWithScopes(refreshToken, scopes) {
+    authDebug('Requesting token with specific scopes via refresh', { scopes })
+    
+    const tokenEndpoint = `${this.authUrl}/${this.config.tenantId}/oauth2/v2.0/token`
+    
+    const params = new URLSearchParams({
+      client_id: this.config.clientId,
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      scope: scopes // Scopes spécifiques pour la nouvelle audience
+    })
+
+    const response = await fetch(tokenEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: params
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      authError('Token refresh with scopes failed', {
+        status: response.status,
+        error,
+        requestedScopes: scopes
+      })
+      throw new Error(`Token refresh failed: ${error.error_description || error.error}`)
+    }
+
+    const tokenData = await response.json()
+    authDebug('Token with specific scopes obtained', {
+      scopes,
+      hasAccessToken: Boolean(tokenData.access_token)
+    })
+    
+    return tokenData
   }
 }
