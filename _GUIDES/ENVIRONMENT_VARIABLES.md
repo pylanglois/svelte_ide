@@ -323,6 +323,23 @@ Ce guide centralise toutes les variables d'environnement disponibles dans le fra
 
 ## Logging et Debug
 
+### `VITE_MODLOG`
+- **Type** : `string` (liste séparée par virgules)
+- **Défaut** : *(vide)* → tous les `console.log/info/debug` sont coupés
+- **Description** : Active précisément les modules dont on veut suivre les logs côté navigateur. La valeur est comparée au chemin du fichier (ex : `core/auth/AuthProvider`) en insensible à la casse.
+- **Valeurs spéciales** :
+  - `*` : ré-active tous les logs (comportement historique)
+  - `auth,hydration` : n'autorise que les fichiers dont le chemin contient `auth` ou `hydration`
+- **Exemples** :
+  ```bash
+  # Ne loguer que la persistance hydratation + auth
+  VITE_MODLOG=auth,hydration
+
+  # Afficher absolument tous les logs
+  VITE_MODLOG=*
+  ```
+- **Astuce runtime** : `window.setModLogFilters('auth')` ou `localStorage.MODLOG="auth,hydration"` permettent d'ajuster sans rebuild.
+
 ### `VITE_AUTH_DEBUG_LOGS`
 *(Déjà documenté dans section Authentification OAuth)*
 

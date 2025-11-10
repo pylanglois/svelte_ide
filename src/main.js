@@ -1,3 +1,4 @@
+import '@/lib/setupLogging.js'
 import App from '@/App.svelte'
 import AppLogo from '@/components/layout/chrome/AppLogo.svelte'
 import ActiveTabItem from '@/components/layout/chrome/statusbar/ActiveTabItem.svelte'
