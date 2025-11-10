@@ -9,6 +9,7 @@ export class TabsManager {
         this.modifiedFiles = new Set()
         this.tabIdCounter = 0
         this.changeCallbacks = new Set()
+        this.hydrationInProgress = false
         
         this.persister = persistenceRegistry.getPersister('tabs')
         this._setupEventListeners()
@@ -28,6 +29,12 @@ export class TabsManager {
 
     _setupEventListeners() {
         eventBus.subscribe('tab:hydrate', this._handleTabHydration.bind(this))
+        eventBus.subscribe('hydration:before', () => {
+            this.hydrationInProgress = true
+        })
+        eventBus.subscribe('hydration:after', () => {
+            this.hydrationInProgress = false
+        })
     }
 
     generateTabId() {
@@ -232,6 +239,10 @@ export class TabsManager {
 
     async saveTabsState(userKey) {
         if (!userKey || !this.persister) return
+        if (this.hydrationInProgress) {
+            console.debug('TabsManager: Skipping saveTabsState while hydration is in progress')
+            return
+        }
 
         try {
             const layout = this.createSerializableLayout()

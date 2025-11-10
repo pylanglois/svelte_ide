@@ -1,5 +1,6 @@
 import { namespacedKey } from '@/core/config/appKey.js'
 import { TokenCipher } from '@/core/security/tokenCipher.svelte.js'
+import { eventBus } from '@/core/EventBusService.svelte.js'
 
 const DB_NAME = namespacedKey('app-data')
 const FALLBACK_STRATEGIES = ['block', 'localstorage', 'memory']
@@ -34,6 +35,11 @@ export class IndexedDBService {
     this.fallbackStrategy = FALLBACK_STRATEGIES.includes(DEFAULT_FALLBACK_STRATEGY)
       ? DEFAULT_FALLBACK_STRATEGY
       : 'block'
+    this.encryptionReady = false
+    this._encryptionReadyPromise = null
+    this._resolveEncryptionReady = null
+    this._rejectEncryptionReady = null
+    this._createEncryptionReadyPromise()
   }
 
   /**
@@ -195,6 +201,15 @@ export class IndexedDBService {
 
     this.encryptionKey = key
     this.cipher = new TokenCipher(key)
+    this.encryptionReady = true
+    if (this._resolveEncryptionReady) {
+      this._resolveEncryptionReady({
+        encrypted: this.cipher?.enabled ?? false,
+        timestamp: Date.now()
+      })
+      this._resolveEncryptionReady = null
+      this._rejectEncryptionReady = null
+    }
     
     console.debug('IndexedDBService: Encryption key set', {
       keyLength: key.length,
@@ -208,7 +223,73 @@ export class IndexedDBService {
   clearEncryptionKey() {
     this.encryptionKey = null
     this.cipher = null
+    this.encryptionReady = false
+    this._resetEncryptionReadyPromise('Encryption key cleared')
     console.debug('IndexedDBService: Encryption key cleared')
+  }
+
+  _createEncryptionReadyPromise() {
+    this.encryptionReady = false
+    this._encryptionReadyPromise = new Promise((resolve, reject) => {
+      this._resolveEncryptionReady = resolve
+      this._rejectEncryptionReady = reject
+    })
+  }
+
+  _resetEncryptionReadyPromise(reason) {
+    if (this._rejectEncryptionReady) {
+      this._rejectEncryptionReady(new Error(reason || 'Encryption readiness reset'))
+    }
+    this._resolveEncryptionReady = null
+    this._rejectEncryptionReady = null
+    this._createEncryptionReadyPromise()
+  }
+
+  readyForEncryption(options = {}) {
+    const { timeoutMs = 0, emitErrorEvent = true } = options ?? {}
+    if (this.encryptionReady) {
+      return Promise.resolve({
+        encrypted: true,
+        timestamp: Date.now()
+      })
+    }
+
+    const basePromise = this._encryptionReadyPromise
+    if (!timeoutMs || timeoutMs <= 0) {
+      return basePromise
+    }
+
+    return new Promise((resolve, reject) => {
+      let timeoutId = null
+      const cleanup = () => {
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
+      }
+
+      basePromise
+        .then((payload) => {
+          cleanup()
+          resolve(payload)
+        })
+        .catch((error) => {
+          cleanup()
+          reject(error)
+        })
+
+      timeoutId = setTimeout(() => {
+        const error = new Error(`IndexedDBService: Encryption key not available after ${timeoutMs}ms`)
+        if (emitErrorEvent) {
+          eventBus.publish('persistence:error', {
+            reason: 'timeout',
+            timeoutMs,
+            timestamp: Date.now()
+          })
+        }
+        reject(error)
+      }, timeoutMs)
+    })
   }
 
   /**

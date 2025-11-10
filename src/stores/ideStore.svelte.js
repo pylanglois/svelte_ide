@@ -545,6 +545,8 @@ class IdeStore {
 
       const layoutData = this._migrateLayoutData(rawLayoutData)
 
+      const pendingHydrations = []
+
       if (layoutData.layout) {
         this.closeAllTabs()
         
@@ -579,7 +581,7 @@ class IdeStore {
             
             restoredTabs.set(tabData.id, tab)
             
-            eventBus.publish('tab:hydrate', {
+            pendingHydrations.push({
               descriptor: tabData.descriptor,
               tabId: tabData.id,
               hydrateCallback: hydrateCallback,
@@ -605,8 +607,35 @@ class IdeStore {
       }
       
       // Restaurer tous les états via le service de fournisseurs
+      const shouldEmitHydrationEvents = pendingHydrations.length > 0 || Boolean(layoutData.states)
+      const hydrationContext = shouldEmitHydrationEvents
+        ? {
+            userId: user?.email || null,
+            pendingTabs: pendingHydrations.length,
+            timestamp: Date.now()
+          }
+        : null
+
+      if (hydrationContext) {
+        eventBus.publish('hydration:before', hydrationContext)
+      }
+
       if (layoutData.states) {
         await stateProviderService.restoreAllStates(layoutData.states)
+      }
+
+      if (pendingHydrations.length > 0) {
+        for (const hydrateEvent of pendingHydrations) {
+          eventBus.publish('tab:hydrate', hydrateEvent)
+        }
+      }
+
+      if (hydrationContext) {
+        eventBus.publish('hydration:after', {
+          ...hydrationContext,
+          hydratedTabs: pendingHydrations.length,
+          completedAt: Date.now()
+        })
       }
 
       const activeTabAfterRestore = layoutService.activeTab

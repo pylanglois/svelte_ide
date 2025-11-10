@@ -82,6 +82,38 @@ Pour la communication découplée entre les outils, ou entre l'IDE et les outils
     ```
 -   **Débogage :** Activez le mode debug via `eventBus.setDebugMode(true)` pour voir tous les événements et leurs données passer dans la console du navigateur.
 
+### Cycle de persistance et d'hydratation
+
+L'accès aux données chiffrées et la restauration du layout suivent désormais un pipeline explicite :
+
+1. **Clé de chiffrement synchronisée**  
+   `App.svelte` observe `authStore.encryptionKey`, alimente `indexedDBService` et `binaryStorageService`, puis publie `eventBus.publish('persistence:ready', { encrypted, services })`. Le même hook publie `encrypted: false` lors d'un logout.
+
+2. **Promesse `readyForEncryption()`**  
+   `IndexedDBService.readyForEncryption({ timeoutMs })` résout quand le chiffrement est opérationnel. Un timeout déclenche un rejet ET un événement `persistence:error` (raison = `timeout`) pour permettre aux outils de dégrader leur UI.
+
+3. **Bootstrap séquencé**  
+   L'IIFE d'`App.svelte` attend `readyForEncryption` avant `registerSystemTools()` puis `toolManager.registerExternalTools()`. Aucun outil n'est autorisé tant que la persistance n'est pas prête ou qu'un timeout explicite n'est pas loggé.
+
+4. **Hydratation orchestrée**  
+   `ideStore.restoreUserLayout()` publie `hydration:before`, restaure `stateProviderService`, puis émet la rafale `tab:hydrate`. Une fois la file vidée, `hydration:after` est publié et `TabsManager` sort du mode `hydrationInProgress` pour autoriser de nouveau `saveTabsState()`.
+
+5. **Timeline complète**  
+   ```
+   authStore.initialize()
+     → persistence services ready
+       → persistence:ready (event)
+       → indexedDBService.readyForEncryption() résolu ou timeout (persistence:error)
+         → registerSystemTools() / registerExternalTools()
+           → ideStore.restoreUserLayout()
+             → hydration:before
+               → stateProviderService.restoreAllStates()
+                 → tab:hydrate*
+                   → hydration:after
+   ```
+
+Les outils peuvent se brancher à n'importe quelle étape via l'`eventBus` afin d'ajuster leur bootstrap (lecture chiffrée, restauration de snapshots, etc.).
+
 ### 3. `src/core/` : Les Classes de Base et Services
 
 Ce dossier contient la logique "métier" de l'IDE lui-même.

@@ -89,6 +89,8 @@ Des outils admin peuvent bénéficier de :
 - **StatusBarService** : Composants personnalisables (horloge, fichier actif, etc.)
 - **ModalService** : Dialogues modaux avec confirmation
 - **ContextMenuService** : Menus contextuels réactifs
+- **Persistence Signals** : Événements `persistence:ready` / `persistence:error` et promesse `indexedDBService.readyForEncryption()` pour coordonner le chiffrement IndexedDB/BinaryStorage.
+- **Hydration Hooks** : Événements `hydration:before` / `hydration:after` garantissant que les `stateProviders` sont restaurés avant l'hydratation des onglets.
 
 #### 6. Outils Système Intégrés
 - **Console** : Logs multi-onglets avec filtres par type

@@ -158,7 +158,12 @@ let resolved = $state(null)
 $effect(() => {
   resolved = normalizeBranding(branding)
 })
-```
+
+## 3. Synchronisation avec la persistance & l'hydratation
+
+- Utilisez **toujours** `eventBus.subscribe('persistence:ready', ...)` pour différer la lecture des données chiffrées. L'événement arrive après que `indexedDBService` **et** `binaryStorageService` aient reçu la clé.
+- Préférez `await indexedDBService.readyForEncryption({ timeoutMs })` dans vos bootstraps asynchrones. Gérez le rejet (timeout) pour basculer en mode dégradé et écouter `persistence:error`.
+- Les restaurations d'outils doivent se brancher sur `hydration:before` (préparation, caches, vérifications) et `hydration:after` (nettoyage). Ne persistez rien pendant la fenêtre `hydration:before → hydration:after` afin d'éviter les snapshots incomplets.
 
 ## 3. Éviter les Boucles Infinies avec `$effect`
 

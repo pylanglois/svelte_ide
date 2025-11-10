@@ -4,6 +4,7 @@
   import { toolManager } from '@/core/ToolManager.svelte.js';
   import { getAuthStore } from '@/stores/authStore.svelte.js';
   import { ideStore } from '@/stores/ideStore.svelte.js';
+  import { eventBus } from '@/core/EventBusService.svelte.js';
 
   import StatusBar from '@/components/layout/chrome/StatusBar.svelte';
   import TitleBar from '@/components/layout/chrome/TitleBar.svelte';
@@ -17,11 +18,13 @@
   import ReAuthModal from '@/components/system/ReAuthModal.svelte';
 
   const authStore = getAuthStore()
+  const PERSISTENCE_READY_TIMEOUT_MS = 10000
 
   // Synchroniser IndexedDBService avec authStore
   $effect(() => {
     const key = authStore.encryptionKey
-    if (key) {
+    const encrypted = Boolean(key)
+    if (encrypted) {
       indexedDBService.setEncryptionKey(key)
       binaryStorageService.setEncryptionKey(key)
       console.debug('App: Encryption keys synchronized for persistence services')
@@ -30,6 +33,14 @@
       binaryStorageService.clearEncryptionKey()
       console.debug('App: Encryption keys cleared for persistence services')
     }
+    eventBus.publish('persistence:ready', {
+      encrypted,
+      services: {
+        indexedDB: encrypted && Boolean(indexedDBService?.cipher?.enabled),
+        binaryStorage: encrypted && Boolean(binaryStorageService?.cipher?.enabled)
+      },
+      timestamp: Date.now()
+    })
   })
 
   function normalizeBranding(value) {
@@ -112,6 +123,16 @@
       } catch (error) {
         console.warn('App: system tool setup failed', error)
       }
+    }
+  }
+
+  async function waitForPersistenceReady() {
+    try {
+      await indexedDBService.readyForEncryption({
+        timeoutMs: PERSISTENCE_READY_TIMEOUT_MS
+      })
+    } catch (readyError) {
+      console.warn('App: Persistence readiness check failed (continuing with degraded mode)', readyError)
     }
   }
   const KEYBOARD_RESIZE_STEP = 16
@@ -203,6 +224,8 @@
       }
 
       await authStore.initialize()
+
+      await waitForPersistenceReady()
 
       await registerSystemTools()
 
