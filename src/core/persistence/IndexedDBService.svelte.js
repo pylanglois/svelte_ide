@@ -43,6 +43,19 @@ export class IndexedDBService {
     this._createEncryptionReadyPromise()
   }
 
+  async _ensureDatabaseReady(storeNames) {
+    if (!this.dbReady) {
+      await this.initialize(storeNames)
+    } else {
+      await this.dbReady
+    }
+
+    if (!this.db) {
+      this.dbReady = null
+      await this.initialize(storeNames)
+    }
+  }
+
   /**
    * Initialise la base de données IndexedDB
    * @param {string[]} storeNames - Liste des stores à créer
@@ -146,22 +159,23 @@ export class IndexedDBService {
    * @returns {Promise<boolean>} true si créé ou déjà existant
    */
   async ensureStore(storeName) {
-    await this.dbReady
-
+    await this._ensureDatabaseReady()
     if (this.hasStore(storeName)) {
       return true
     }
 
     // Fermer la connexion actuelle
-    this.db.close()
+    if (this.db) {
+      this.db.close()
+    }
 
     // Ouvrir avec version incrémentée pour déclencher onupgradeneeded
-    const currentVersion = this.db.version
+    const currentVersion = this.dbVersion || this.db?.version || 1
     const newVersion = currentVersion + 1
 
     console.debug(`IndexedDBService: Creating store "${storeName}" (version ${newVersion})`)
 
-    return new Promise((resolve, reject) => {
+    this.dbReady = new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, newVersion)
 
       request.onerror = () => {
@@ -172,8 +186,9 @@ export class IndexedDBService {
       request.onsuccess = () => {
         this.db = request.result
         this.dbVersion = this.db?.version ?? null
+        this.availableStores.add(storeName)
         console.debug(`IndexedDBService: Store "${storeName}" created successfully`)
-        resolve(true)
+        resolve(this.db)
       }
 
       request.onupgradeneeded = (event) => {
@@ -188,6 +203,9 @@ export class IndexedDBService {
         }
       }
     })
+
+    await this.dbReady
+    return true
   }
 
   /**
@@ -309,6 +327,16 @@ export class IndexedDBService {
     })
   }
 
+  _shouldRetryDatabaseOperation(error) {
+    if (!error) {
+      return false
+    }
+    const message = (error.message || '').toLowerCase()
+    return error.name === 'InvalidStateError' ||
+      error.name === 'TransactionInactiveError' ||
+      message.includes('closed database')
+  }
+
   /**
    * Vérifie qu'un store existe dans la base
    * @param {string} storeName
@@ -328,9 +356,9 @@ export class IndexedDBService {
    * @param {any} data - Données à sauvegarder (sérialisables en JSON)
    * @returns {Promise<boolean>} true si succès
    */
-  async save(storeName, key, data) {
+  async save(storeName, key, data, retryAttempted = false) {
     try {
-      await this.dbReady
+      await this._ensureDatabaseReady()
 
       // Créer le store s'il n'existe pas
       if (!this.hasStore(storeName)) {
@@ -372,6 +400,11 @@ export class IndexedDBService {
         }
       })
     } catch (error) {
+      if (!retryAttempted && this._shouldRetryDatabaseOperation(error)) {
+        console.warn('IndexedDBService: Save failed due to closed database, retrying once', error)
+        await this.initialize()
+        return this.save(storeName, key, data, true)
+      }
       console.error('IndexedDBService: Save error', error)
       return false
     }
@@ -386,7 +419,7 @@ export class IndexedDBService {
    */
   async load(storeName, key, defaultValue = null) {
     try {
-      await this.dbReady
+      await this._ensureDatabaseReady()
 
       // Créer le store s'il n'existe pas
       if (!this.hasStore(storeName)) {
@@ -450,7 +483,7 @@ export class IndexedDBService {
    */
   async delete(storeName, key) {
     try {
-      await this.dbReady
+      await this._ensureDatabaseReady()
 
       if (!this.hasStore(storeName)) {
         return false
@@ -484,7 +517,7 @@ export class IndexedDBService {
    */
   async clear(storeName) {
     try {
-      await this.dbReady
+      await this._ensureDatabaseReady()
 
       if (!this.hasStore(storeName)) {
         return false
@@ -518,7 +551,7 @@ export class IndexedDBService {
    */
   async count(storeName) {
     try {
-      await this.dbReady
+      await this._ensureDatabaseReady()
 
       if (!this.hasStore(storeName)) {
         return 0
@@ -552,7 +585,7 @@ export class IndexedDBService {
    */
   async getAll(storeName, limit = 0) {
     try {
-      await this.dbReady
+      await this._ensureDatabaseReady()
 
       if (!this.hasStore(storeName)) {
         return []
