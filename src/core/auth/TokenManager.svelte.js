@@ -167,22 +167,6 @@ export class TokenManager {
         })
       }
       
-      // 🔍 LOGGING : Afficher les tokens restaurés en DEV
-      if (import.meta.env.DEV && this.tokens.size > 0) {
-        console.group('🔄 Multi-Tokens Restaurés du Storage')
-        console.log('Nombre de tokens:', this.tokens.size)
-        console.table(
-          Array.from(this.tokens.entries()).map(([audience, tokenData]) => ({
-            Audience: audience,
-            'Token (tronqué)': tokenData.accessToken.substring(0, 30) + '...',
-            Scopes: tokenData.scopes.join(', '),
-            'Expire le': tokenData.expiry.toLocaleString('fr-CA'),
-            'Est valide': new Date() < tokenData.expiry ? '✅' : '❌'
-          }))
-        )
-        console.groupEnd()
-      }
-
       // Restaurer refresh token (peut être dans un storage différent)
       if (data.refreshToken) {
         this.refreshToken = data.refreshToken

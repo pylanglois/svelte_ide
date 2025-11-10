@@ -39,6 +39,7 @@ export class IndexedDBService {
     this._encryptionReadyPromise = null
     this._resolveEncryptionReady = null
     this._rejectEncryptionReady = null
+    this._encryptionReadyWaiters = 0
     this._createEncryptionReadyPromise()
   }
 
@@ -237,12 +238,24 @@ export class IndexedDBService {
   }
 
   _resetEncryptionReadyPromise(reason) {
-    if (this._rejectEncryptionReady) {
+    if (this._rejectEncryptionReady && this._encryptionReadyWaiters > 0) {
       this._rejectEncryptionReady(new Error(reason || 'Encryption readiness reset'))
     }
     this._resolveEncryptionReady = null
     this._rejectEncryptionReady = null
     this._createEncryptionReadyPromise()
+  }
+
+  _trackReadyWaiter() {
+    this._encryptionReadyWaiters += 1
+    let released = false
+    return () => {
+      if (released) {
+        return
+      }
+      released = true
+      this._encryptionReadyWaiters = Math.max(0, this._encryptionReadyWaiters - 1)
+    }
   }
 
   readyForEncryption(options = {}) {
@@ -255,8 +268,9 @@ export class IndexedDBService {
     }
 
     const basePromise = this._encryptionReadyPromise
+    const releaseWaiter = this._trackReadyWaiter()
     if (!timeoutMs || timeoutMs <= 0) {
-      return basePromise
+      return basePromise.finally(releaseWaiter)
     }
 
     return new Promise((resolve, reject) => {
@@ -271,10 +285,12 @@ export class IndexedDBService {
       basePromise
         .then((payload) => {
           cleanup()
+          releaseWaiter()
           resolve(payload)
         })
         .catch((error) => {
           cleanup()
+          releaseWaiter()
           reject(error)
         })
 
@@ -287,6 +303,7 @@ export class IndexedDBService {
             timestamp: Date.now()
           })
         }
+        releaseWaiter()
         reject(error)
       }, timeoutMs)
     })
