@@ -1,3 +1,5 @@
+import './lib/setupLogging.js'
+
 export { default as App } from './App.svelte'
 export { default as AppLogo } from './components/layout/chrome/AppLogo.svelte'
 export { default as StatusBarActiveTabItem } from './components/layout/chrome/statusbar/ActiveTabItem.svelte'
