@@ -127,6 +127,16 @@
   }
 
   async function waitForPersistenceReady() {
+    if (!authStore.isAuthenticated || !authStore.hasEncryptionKey) {
+      await new Promise((resolve) => {
+        const unsubscribe = eventBus.subscribe('persistence:ready', (payload) => {
+          if (payload?.encrypted) {
+            unsubscribe()
+            resolve()
+          }
+        })
+      })
+    }
     try {
       await indexedDBService.readyForEncryption({
         timeoutMs: PERSISTENCE_READY_TIMEOUT_MS

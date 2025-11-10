@@ -236,34 +236,6 @@ export class AuthManager {
       
       authDebug('Authentication successful', { providerId: provider.id })
       
-      // 🔍 LOGGING : Afficher tous les tokens stockés
-      if (import.meta.env.DEV) {
-        console.group('🎫 Multi-Tokens Stockés')
-        console.log('Nombre de tokens:', this.tokenManager.tokens.size)
-        
-        if (this.tokenManager.tokens.size > 0) {
-          console.table(
-            Array.from(this.tokenManager.tokens.entries()).map(([audience, tokenData]) => ({
-              Audience: audience,
-              'Token (tronqué)': tokenData.accessToken.substring(0, 30) + '...' + tokenData.accessToken.substring(tokenData.accessToken.length - 10),
-              Scopes: tokenData.scopes.join(', '),
-              'Expire le': tokenData.expiry.toLocaleString('fr-CA')
-            }))
-          )
-          
-          console.log('\n💡 Pour récupérer un token spécifique:')
-          this.tokenManager.tokens.forEach((_, audience) => {
-            console.log(`  authStore.getAccessToken('${audience}')`)
-          })
-        } else {
-          console.warn('Aucun token multi-audience trouvé (format legacy?)')
-        }
-        
-        console.log('\n🔑 Token par défaut:', this.tokenManager.accessToken ? 
-          this.tokenManager.accessToken.substring(0, 30) + '...' : 'N/A')
-        console.groupEnd()
-      }
-      
       // Marquer ce callback comme traité
       sessionStorage.setItem(callbackKey, 'true')
       
