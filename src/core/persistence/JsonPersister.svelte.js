@@ -39,6 +39,7 @@ export class JsonPersister extends PersisterInterface {
   constructor(namespace, options = {}) {
     super(namespace)
     this.storeName = options.storeName || sanitizeStoreName(namespace)
+    indexedDBService.registerInitialStore(this.storeName)
     const globalStrategy = indexedDBService.getFallbackStrategy?.() || ENV_FALLBACK
     this.fallbackStrategy = (options.fallbackStrategy || globalStrategy).toLowerCase()
     this.fallbackPersister = null

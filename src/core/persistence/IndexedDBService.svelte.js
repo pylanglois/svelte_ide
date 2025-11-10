@@ -40,6 +40,11 @@ export class IndexedDBService {
     this._resolveEncryptionReady = null
     this._rejectEncryptionReady = null
     this._encryptionReadyWaiters = 0
+    this.initialStores = new Set()
+    this.registerInitialStore('default')
+    this.registerInitialStore('tools')
+    this.registerInitialStore('layout')
+    this.registerInitialStore('preferences')
     this._createEncryptionReadyPromise()
   }
 
@@ -61,7 +66,24 @@ export class IndexedDBService {
    * @param {string[]} storeNames - Liste des stores à créer
    * @returns {Promise<IDBDatabase>}
    */
-  async initialize(storeNames = ['default']) {
+  registerInitialStore(storeName) {
+    if (!storeName || typeof storeName !== 'string') {
+      return
+    }
+    const normalized = storeName.trim()
+    if (!normalized) {
+      return
+    }
+    this.initialStores.add(normalized)
+  }
+
+  async initialize(storeNames = []) {
+    const stores = Array.isArray(storeNames) ? storeNames : [storeNames]
+    for (const storeName of stores) {
+      this.registerInitialStore(storeName)
+    }
+    const storesToCreate = Array.from(this.initialStores)
+
     if (this.dbReady) {
       return this.dbReady
     }
@@ -109,7 +131,7 @@ export class IndexedDBService {
         })
 
         // Créer les stores demandés
-        for (const storeName of storeNames) {
+        for (const storeName of storesToCreate) {
           if (!db.objectStoreNames.contains(storeName)) {
             const objectStore = db.createObjectStore(storeName, { keyPath: 'key' })
             
@@ -159,6 +181,10 @@ export class IndexedDBService {
    * @returns {Promise<boolean>} true si créé ou déjà existant
    */
   async ensureStore(storeName) {
+    this.registerInitialStore(storeName)
+    if (!this.dbReady) {
+      return true
+    }
     await this._ensureDatabaseReady()
     if (this.hasStore(storeName)) {
       return true
