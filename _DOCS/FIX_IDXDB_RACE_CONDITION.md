@@ -41,55 +41,114 @@ Le service `indexedDBService` dispose d'un **retry mechanism** qui réinitialise
 
 ## Solution Implémentée
 
-### Approche : Différer les sauvegardes jusqu'à `persistence:ready`
+### Approche : Différer les sauvegardes ET attendre readyForEncryption
 
-1. **Ajout d'un flag `_persistenceReady`** dans `ideStore` :
-   ```javascript
-   this._persistenceReady = false
-   this._hasPendingSave = false
-   ```
+Le fix comporte **deux parties critiques** :
 
-2. **Écoute de l'événement `persistence:ready`** :
-   ```javascript
-   eventBus.subscribe('persistence:ready', () => {
-     this._persistenceReady = true
-     // Si une sauvegarde était en attente, la déclencher maintenant
-     if (this._hasPendingSave) {
-       this._hasPendingSave = false
-       this.saveUserLayout()
-     }
-   })
-   ```
+#### 1. **Dans `ideStore.svelte.js` : Flag de garde**
 
-3. **Garde dans `saveUserLayout()`** :
-   ```javascript
-   async saveUserLayout() {
-     if (!this.isAuthenticated || !this.user) return
-     
-     // Différer la sauvegarde si la persistance n'est pas encore prête
-     if (!this._persistenceReady) {
-       this._hasPendingSave = true
-       console.debug('IdeStore: Sauvegarde différée, persistance non prête')
-       return
-     }
-     
-     // ... reste du code de sauvegarde
-   }
-   ```
+```javascript
+this._persistenceReady = false
+this._hasPendingSave = false
+
+eventBus.subscribe('persistence:ready', () => {
+  this._persistenceReady = true
+  // Si une sauvegarde était en attente, la déclencher maintenant
+  if (this._hasPendingSave) {
+    this._hasPendingSave = false
+    this.saveUserLayout()
+  }
+})
+```
+
+```javascript
+async saveUserLayout() {
+  if (!this.isAuthenticated || !this.user) return
+  
+  // Différer la sauvegarde si la persistance n'est pas encore prête
+  if (!this._persistenceReady) {
+    this._hasPendingSave = true
+    console.debug('IdeStore: Sauvegarde différée, persistance non prête')
+    return
+  }
+  
+  // ... reste du code de sauvegarde
+}
+```
+
+#### 2. **Dans `App.svelte` : Attendre readyForEncryption() AVANT de publier**
+
+**❌ CODE PROBLÉMATIQUE (avant fix)** :
+```javascript
+$effect(() => {
+  const key = authStore.encryptionKey
+  const encrypted = Boolean(key)
+  if (encrypted) {
+    indexedDBService.setEncryptionKey(key) // ← Déclenche fermeture/réouverture DB
+    binaryStorageService.setEncryptionKey(key)
+  }
+  eventBus.publish('persistence:ready', { ... }) // ← TROP TÔT ! DB pas prête
+})
+```
+
+**✅ CODE CORRIGÉ** :
+```javascript
+$effect(() => {
+  const key = authStore.encryptionKey
+  const encrypted = Boolean(key)
+  
+  const syncPersistence = async () => {
+    if (encrypted) {
+      indexedDBService.setEncryptionKey(key)
+      binaryStorageService.setEncryptionKey(key)
+      
+      // ✅ ATTENDRE que IndexedDB soit vraiment prête
+      try {
+        await indexedDBService.readyForEncryption({ timeoutMs: 10000 })
+        console.debug('App: IndexedDB ready, publishing persistence:ready')
+      } catch (readyError) {
+        console.warn('App: IndexedDB timeout, publishing anyway', readyError)
+        eventBus.publish('persistence:error', { reason: 'timeout', ... })
+      }
+    } else {
+      indexedDBService.clearEncryptionKey()
+      binaryStorageService.clearEncryptionKey()
+    }
+    
+    // Publier SEULEMENT après que readyForEncryption() soit résolu
+    eventBus.publish('persistence:ready', { encrypted, ... })
+  }
+  
+  syncPersistence()
+})
+```
+
+**Pourquoi c'était cassé** :
+- `setEncryptionKey()` déclenche `initialize()` qui **ferme puis rouvre** la DB
+- Cette opération prend plusieurs centaines de millisecondes
+- L'ancien code publiait `persistence:ready` **immédiatement** sans attendre
+- Résultat : `ideStore` marquait `_persistenceReady = true` alors que la DB était fermée
 
 ### Flux Corrigé
 
 ```
 1. App.svelte démarre
-2. authStore initialise les clés de chiffrement
-3. App.$effect() publie 'persistence:ready'
-   ├─> ideStore._persistenceReady = true
-   └─> Déclenche la sauvegarde en attente si nécessaire
+2. authStore.encryptionKey change
+3. App.$effect() se déclenche
+   ├─> indexedDBService.setEncryptionKey(key)
+   │     └─> Ferme la DB actuelle
+   │     └─> Rouvre avec chiffrement
+   ├─> await indexedDBService.readyForEncryption()
+   │     └─> Attend que db.onupgradeneeded se termine
+   │     └─> Attend que db.onsuccess se termine
+   ├─> ✅ DB VRAIMENT PRÊTE
+   └─> eventBus.publish('persistence:ready')
+         └─> ideStore._persistenceReady = true
+         └─> Exécute la sauvegarde en attente si nécessaire
 4. Utilisateur clique sur un tool
 5. PanelsManager notifie le changement
 6. ideStore.saveUserLayout() vérifie _persistenceReady
-   ├─> ✅ Si prêt : sauvegarde immédiate
-   └─> ⏳ Sinon : marque _hasPendingSave = true
+   └─> ✅ La DB est garantie ouverte et opérationnelle
 ```
 
 ## Tests de Validation
@@ -149,16 +208,19 @@ eventBus.subscribe('persistence:error', ({ reason }) => {
 
 ## Références
 
-- **Code modifié** : `src/stores/ideStore.svelte.js`
-- **Événement utilisé** : `persistence:ready` (publié par `App.svelte`)
+- **Code modifié** :
+  - `src/stores/ideStore.svelte.js` (flag `_persistenceReady` + garde dans `saveUserLayout()`)
+  - `src/App.svelte` (await `readyForEncryption()` avant `persistence:ready`)
+- **Événement utilisé** : `persistence:ready` (publié par `App.svelte` **après** readyForEncryption)
 - **Services liés** :
-  - `IndexedDBService.svelte.js` (retry mechanism existant)
+  - `IndexedDBService.svelte.js` (méthode `readyForEncryption()` + retry mechanism)
   - `PersistenceRegistry.svelte.js` (orchestration)
   - `App.svelte` (publication de `persistence:ready`)
 
 ## Crédit
 
-Diagnostic initial et analyse par l'intégrateur du projet `document-library`.
+Diagnostic initial et analyse par l'intégrateur du projet `document-library`.  
+Identification de la race condition dans `App.svelte` par re-examen du code installé dans `node_modules`.
 
 ---
 

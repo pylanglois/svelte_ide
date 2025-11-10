@@ -20,27 +20,48 @@
   const authStore = getAuthStore()
   const PERSISTENCE_READY_TIMEOUT_MS = 10000
 
-  // Synchroniser IndexedDBService avec authStore
+  // Synchroniser IndexedDBService avec authStore et attendre que la DB soit vraiment prête
   $effect(() => {
     const key = authStore.encryptionKey
     const encrypted = Boolean(key)
-    if (encrypted) {
-      indexedDBService.setEncryptionKey(key)
-      binaryStorageService.setEncryptionKey(key)
-      console.debug('App: Encryption keys synchronized for persistence services')
-    } else {
-      indexedDBService.clearEncryptionKey()
-      binaryStorageService.clearEncryptionKey()
-      console.debug('App: Encryption keys cleared for persistence services')
+    
+    // Fonction async pour gérer l'attente de readyForEncryption
+    const syncPersistence = async () => {
+      if (encrypted) {
+        indexedDBService.setEncryptionKey(key)
+        binaryStorageService.setEncryptionKey(key)
+        console.debug('App: Encryption keys synchronized for persistence services')
+        
+        // ✅ ATTENDRE que IndexedDB soit vraiment prête avant de publier l'événement
+        try {
+          await indexedDBService.readyForEncryption({ timeoutMs: PERSISTENCE_READY_TIMEOUT_MS })
+          console.debug('App: IndexedDB ready for encryption, publishing persistence:ready')
+        } catch (readyError) {
+          console.warn('App: IndexedDB readiness timeout, publishing persistence:ready anyway', readyError)
+          eventBus.publish('persistence:error', {
+            reason: 'timeout',
+            error: readyError,
+            timestamp: Date.now()
+          })
+        }
+      } else {
+        indexedDBService.clearEncryptionKey()
+        binaryStorageService.clearEncryptionKey()
+        console.debug('App: Encryption keys cleared for persistence services')
+      }
+      
+      // Publier l'événement seulement APRÈS que readyForEncryption() soit résolu ou timeout
+      eventBus.publish('persistence:ready', {
+        encrypted,
+        services: {
+          indexedDB: encrypted && Boolean(indexedDBService?.cipher?.enabled),
+          binaryStorage: encrypted && Boolean(binaryStorageService?.cipher?.enabled)
+        },
+        timestamp: Date.now()
+      })
     }
-    eventBus.publish('persistence:ready', {
-      encrypted,
-      services: {
-        indexedDB: encrypted && Boolean(indexedDBService?.cipher?.enabled),
-        binaryStorage: encrypted && Boolean(binaryStorageService?.cipher?.enabled)
-      },
-      timestamp: Date.now()
-    })
+    
+    syncPersistence()
   })
 
   function normalizeBranding(value) {

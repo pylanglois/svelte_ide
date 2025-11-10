@@ -7,6 +7,19 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### 🐛 Corrigé
+
+#### Race Condition IndexedDB au Démarrage
+- **Problème** : Erreur `DOMException: IDBDatabase.transaction: Can't start a transaction on a closed database` au clic sur un tool après le démarrage
+- **Cause** : Double bug identifié par un intégrateur
+  1. `ideStore.saveUserLayout()` appelé sans vérifier si IndexedDB était prête
+  2. `App.svelte` publiait `persistence:ready` **avant** que `readyForEncryption()` soit résolu
+- **Fix** :
+  - `ideStore.svelte.js` : Ajout d'un flag `_persistenceReady` avec garde dans `saveUserLayout()`
+  - `App.svelte` : Attente de `await indexedDBService.readyForEncryption()` avant de publier l'événement
+- **Impact** : Console propre au démarrage, pas de retry inutile, sauvegarde garantie quand la DB est opérationnelle
+- **Documentation** : `_DOCS/IDXDB_RACE_CONDITION_COMPLETE_FIX.md`
+
 ### 🎉 Ajouté
 
 #### Cache d'Avatars Utilisateurs

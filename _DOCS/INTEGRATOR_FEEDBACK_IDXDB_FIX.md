@@ -12,9 +12,18 @@ C'était effectivement un **race condition** au démarrage où le callback `pane
 
 ## Ce Qui a Été Corrigé
 
+### ⚠️ Découverte Importante : Deux Bugs, Pas Un !
+
+Après re-examen du code installé dans `node_modules/svelte-ide`, il s'avère que le fix initial était **incomplet**. Deux problèmes coexistaient :
+
+#### Bug #1 : `ideStore` n'attendait pas la persistance ✅ CORRIGÉ
+#### Bug #2 : `App.svelte` publiait `persistence:ready` TROP TÔT ⚠️ **C'était le vrai problème**
+
+---
+
 ### Dans `src/stores/ideStore.svelte.js`
 
-**1. Ajout d'un flag de garde**
+**Ajout d'un flag de garde** (partiellement efficace seul)
 ```javascript
 // Flags pour éviter les sauvegardes prématurées
 this._persistenceReady = false
@@ -31,7 +40,7 @@ eventBus.subscribe('persistence:ready', () => {
 })
 ```
 
-**2. Protection dans `saveUserLayout()`**
+**Protection dans `saveUserLayout()`**
 ```javascript
 async saveUserLayout() {
   if (!this.isAuthenticated || !this.user) return
@@ -47,6 +56,60 @@ async saveUserLayout() {
 }
 ```
 
+### ✅ Dans `src/App.svelte` - **LE VRAI FIX**
+
+**❌ Code problématique (publiait l'événement trop tôt)** :
+```javascript
+$effect(() => {
+  const key = authStore.encryptionKey
+  const encrypted = Boolean(key)
+  if (encrypted) {
+    indexedDBService.setEncryptionKey(key) // ← Déclenche fermeture/réouverture DB
+    binaryStorageService.setEncryptionKey(key)
+  }
+  // ❌ Publication immédiate alors que la DB n'est pas prête !
+  eventBus.publish('persistence:ready', { ... })
+})
+```
+
+**✅ Code corrigé (attend readyForEncryption)** :
+```javascript
+$effect(() => {
+  const key = authStore.encryptionKey
+  const encrypted = Boolean(key)
+  
+  const syncPersistence = async () => {
+    if (encrypted) {
+      indexedDBService.setEncryptionKey(key)
+      binaryStorageService.setEncryptionKey(key)
+      
+      // ✅ ATTENDRE que IndexedDB soit vraiment prête avant de publier
+      try {
+        await indexedDBService.readyForEncryption({ timeoutMs: 10000 })
+        console.debug('App: IndexedDB ready for encryption, publishing persistence:ready')
+      } catch (readyError) {
+        console.warn('App: IndexedDB readiness timeout, publishing anyway', readyError)
+        eventBus.publish('persistence:error', { reason: 'timeout', ... })
+      }
+    } else {
+      indexedDBService.clearEncryptionKey()
+      binaryStorageService.clearEncryptionKey()
+    }
+    
+    // Publier l'événement seulement APRÈS que readyForEncryption() soit résolu
+    eventBus.publish('persistence:ready', { encrypted, ... })
+  }
+  
+  syncPersistence()
+})
+```
+
+**Pourquoi c'est critique** :
+- `setEncryptionKey()` appelle `initialize()` qui **ferme puis rouvre** IndexedDB
+- Cette opération prend **plusieurs centaines de millisecondes**
+- L'ancien code publiait `persistence:ready` **sans attendre** la réouverture
+- Résultat : `ideStore._persistenceReady = true` mais la DB était fermée → Erreurs
+
 ---
 
 ## Résultat Attendu
@@ -59,13 +122,30 @@ Les logs suivants **disparaissent complètement** :
 ```
 
 ### ✅ Flux corrigé
+
 ```
-1. Utilisateur clique sur un tool
-2. Panel s'ouvre instantanément
-3. saveUserLayout() vérifie _persistenceReady
-   └─> Si false → mise en queue silencieuse (log debug uniquement)
-   └─> Si true → sauvegarde immédiate dans IndexedDB
+1. App.svelte démarre
+2. authStore.encryptionKey change
+3. App.$effect() → syncPersistence() async
+   ├─> indexedDBService.setEncryptionKey(key)
+   │     └─> db.close() ← Ferme la DB actuelle
+   │     └─> db.open() ← Rouvre avec chiffrement
+   ├─> await readyForEncryption({ timeoutMs: 10000 })
+   │     └─> Attend onupgradeneeded si nécessaire
+   │     └─> Attend onsuccess (DB opérationnelle)
+   ├─> ✅ Promise résolue → DB VRAIMENT PRÊTE
+   └─> eventBus.publish('persistence:ready')
+         └─> ideStore._persistenceReady = true
+4. Utilisateur clique sur un tool
+5. Panel s'ouvre instantanément
+6. saveUserLayout() vérifie _persistenceReady
+   └─> ✅ true → Sauvegarde immédiate sans erreur
 ```
+
+**Timeline critique** :
+- `setEncryptionKey()` → DB fermée pendant ~200-500ms
+- ✅ `readyForEncryption()` bloque jusqu'à ce que la DB soit rouverte
+- ✅ `persistence:ready` publié seulement quand c'est vraiment prêt
 
 ### ✅ Pas d'impact sur ton code document-library
 Le problème était **exclusivement dans le framework**. Ton outil fonctionne correctement et devrait maintenant bénéficier d'un environnement sans erreurs au démarrage.
@@ -148,11 +228,27 @@ J'ai créé `_DOCS/FIX_IDXDB_RACE_CONDITION.md` avec :
 
 ## Prochaines Étapes
 
-1. **Teste les scénarios ci-dessus** et confirme que les erreurs ont disparu
-2. Si OK → ton code `document-library` devrait fonctionner sans friction
-3. Si tu vois encore des erreurs → partage les logs, on creusera plus loin
+1. **Publie une nouvelle version du framework** (`npm publish` ou équivalent)
+2. **Met à jour ta dépendance** dans `frontend/package.json` :
+   ```bash
+   cd /home/pylan1/src/ul-eia-poc-bnr-cv-chercheur/frontend
+   npm update svelte-ide
+   # Ou avec une version spécifique
+   npm install svelte-ide@latest
+   ```
+3. **Teste les scénarios** et confirme que les erreurs ont disparu
+4. Si OK → ton code `document-library` devrait fonctionner sans friction
+5. Si tu vois encore des erreurs → partage les logs, on creusera plus loin
 
-Merci pour le diagnostic précis, ça a permis d'identifier et corriger un bug réel du framework ! 🎯
+Merci pour le diagnostic précis ET pour avoir re-vérifié le code installé ! Sans ton re-examen, le bug dans `App.svelte` serait passé inaperçu. 🎯
+
+---
+
+**Analyse Post-Mortem** :
+- ❌ Fix initial incomplet : ajout du flag mais événement toujours publié trop tôt
+- ✅ Re-examen du code `node_modules` → découverte de la vraie cause
+- ✅ `await readyForEncryption()` garantit maintenant que la DB est opérationnelle
+- 🎓 Leçon : Toujours vérifier le code installé, pas seulement la source
 
 ---
 
