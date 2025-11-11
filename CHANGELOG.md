@@ -9,6 +9,14 @@ et ce projet adhère au [Versionnage Sémantique](https://semver.org/lang/fr/).
 
 ### 🐛 Corrigé
 
+#### GenericElementTree : Visuels Drag & Drop Manquants
+- **Problème** : Les feedbacks visuels pendant le drag & drop (bordure bleue pointillée, fond bleu, opacité réduite) ne s'affichaient pas
+- **Cause** : Scoping CSS de Svelte 5 - les styles dans `GenericElementTree` ne ciblaient pas les classes appliquées par `ElementTreeNode`
+- **Fix** : Ajout de `:global()` sur les sélecteurs `.tree-item.drag-over`, `.tree-item.dragging-document`, `.tree-item.dragging-folder`
+- **Bonus** : Suppression de la grosse zone bleue sur `.content.dragging` (artéfact de l'ancien code, remplacé par feedback ciblé sur les folders)
+- **Impact** : Les visuels de drag & drop fonctionnent maintenant comme dans l'ancien composant monolithique, mais plus propres
+- **Documentation** : `_DOCS/GENERIC_ELEMENT_TREE_DRAG_VISUAL_FIX.md`
+
 #### Race Condition IndexedDB au Démarrage
 - **Problème** : Erreur `DOMException: IDBDatabase.transaction: Can't start a transaction on a closed database` au clic sur un tool après le démarrage
 - **Cause** : Double bug identifié par un intégrateur

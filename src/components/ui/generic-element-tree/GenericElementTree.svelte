@@ -203,6 +203,18 @@
 
   const folderOptions = $derived(buildFolderOptions(tree))
   const rootId = $derived(tree?.id ?? 'generic-tree-root')
+  let rootDragActive = $state(false)
+
+  function logDragState(source, extra = {}) {
+    if (!import.meta.env.DEV) return
+    console.log(`[GenericElementTree:${source}]`, {
+      dragOverFolderId,
+      rootDragActive,
+      draggedNodeId,
+      draggedNodeType,
+      ...extra
+    })
+  }
 
   $effect(() => {
     if (!initialTree) return
@@ -450,85 +462,140 @@
     draggedNodeType = isFolderNode(node) ? 'folder' : 'document'
     event.dataTransfer?.setData(NODE_DRAG_TYPE, node.id)
     event.dataTransfer?.setDragImage(event.currentTarget, 0, 0)
+    rootDragActive = true
+    logDragState('nodeDragStart', { nodeId: node.id })
   }
 
   function handleNodeDragEnd() {
     draggedNodeId = null
     draggedNodeType = null
     dragOverFolderId = null
+    rootDragActive = false
+    logDragState('nodeDragEnd')
+  }
+
+  function getTargetFolderId(folderId) {
+    return folderId ?? rootId
   }
 
   function handleFolderDragOver(event, folderId) {
-    if (!allowNodeDrag && !allowExternalFileDrop) return
-    const nodeDrag = isNodeDrag(event)
-    const fileDrag = hasFilePayload(event)
-    if (!nodeDrag && !(allowExternalFileDrop && fileDrag)) return
-    event.preventDefault()
-    event.stopPropagation()
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = nodeDrag ? 'move' : 'copy'
-    }
-    dragOverFolderId = folderId
-  }
-
-  function handleFolderDragLeave(event, folderId) {
-    if (dragOverFolderId !== folderId) return
-    if (!isLeavingDropZone(event)) return
-    dragOverFolderId = null
-  }
-
-  function handleFolderDrop(event, folderId) {
-    if (!allowNodeDrag && !allowExternalFileDrop) return
-    const nodeDrag = isNodeDrag(event)
-    const fileDrag = hasFilePayload(event)
-    if (!nodeDrag && !(allowExternalFileDrop && fileDrag)) return
-    event.preventDefault()
-    event.stopPropagation()
-    const targetFolderId = folderId || rootId
-    dragOverFolderId = null
-    if (nodeDrag && allowNodeDrag) {
+    const targetFolderId = getTargetFolderId(folderId)
+    const nodeDrag = allowNodeDrag && isNodeDrag(event)
+    if (nodeDrag) {
       const dragData = getDragData(event)
-      if (dragData?.id) {
-        moveNode(dragData.id, targetFolderId)
+      if (!dragData) return
+      if (dragData.id === targetFolderId) return
+      const draggedNode = findNodeById(tree, dragData.id)
+      if (!draggedNode || draggedNode.parentId === targetFolderId) return
+      if (isFolderNode(draggedNode) && isAncestor(tree, targetFolderId, dragData.id)) return
+      event.preventDefault()
+      event.stopPropagation()
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'move'
       }
+      dragOverFolderId = targetFolderId
+      logDragState('folderDragOver', { folderId: targetFolderId, nodeDrag: true })
       return
     }
-    if (allowExternalFileDrop) {
-      const files = event.dataTransfer?.files
-      if (files && files.length > 0) {
-        handleFiles(files, targetFolderId)
-      }
-    }
-  }
 
-  function handleDrop(event) {
-    if (!allowExternalFileDrop) return
-    event.preventDefault()
-    event.stopPropagation()
-    dragOverFolderId = null
-    const files = event.dataTransfer?.files
-    if (files && files.length > 0) {
-      handleFiles(files, rootId)
-    }
-  }
-
-  function handleDragOver(event) {
     if (!allowExternalFileDrop) return
     const fileDrag = hasFilePayload(event)
     if (!fileDrag) return
     event.preventDefault()
+    event.stopPropagation()
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'copy'
+    }
+    dragOverFolderId = targetFolderId
+    logDragState('folderDragOver', { folderId: targetFolderId, fileDrag: true })
+  }
+
+  function handleFolderDragLeave(event, folderId) {
+    const targetFolderId = getTargetFolderId(folderId)
+    if (dragOverFolderId !== targetFolderId) return
+    if (!isLeavingDropZone(event)) return
+    if (!allowNodeDrag && !allowExternalFileDrop) return
+    if (!isNodeDrag(event) && !hasFilePayload(event)) return
+    event.stopPropagation()
+    dragOverFolderId = null
+    logDragState('folderDragLeave', { folderId: targetFolderId })
+  }
+
+  function handleFolderDrop(event, folderId) {
+    const targetFolderId = getTargetFolderId(folderId)
+    const nodeDrag = allowNodeDrag && isNodeDrag(event)
+    const fileDrag = allowExternalFileDrop && hasFilePayload(event)
+    if (!nodeDrag && !fileDrag) return
+    event.preventDefault()
+    event.stopPropagation()
+    dragOverFolderId = null
+    if (nodeDrag) {
+      const dragData = getDragData(event)
+      draggedNodeId = null
+      draggedNodeType = null
+      if (dragData?.id) {
+        moveNode(dragData.id, targetFolderId)
+      }
+      rootDragActive = false
+      logDragState('folderDropNode', { folderId: targetFolderId, draggedId: dragData?.id ?? null })
+      return
+    }
+    const files = event.dataTransfer?.files
+    if (files && files.length > 0) {
+      handleFiles(files, targetFolderId)
+    }
+    rootDragActive = false
+    logDragState('folderDropFiles', { folderId: targetFolderId })
+  }
+
+  function handleDrop(event) {
+    const nodeDrag = allowNodeDrag && isNodeDrag(event)
+    const fileDrag = allowExternalFileDrop && hasFilePayload(event)
+    if (!nodeDrag && !fileDrag) return
+    event.preventDefault()
+    event.stopPropagation()
+    dragOverFolderId = null
+    rootDragActive = false
+    if (nodeDrag) {
+      const dragData = getDragData(event)
+      draggedNodeId = null
+      draggedNodeType = null
+      if (dragData?.id) {
+        moveNode(dragData.id, rootId)
+      }
+      logDragState('rootDropNode', { draggedId: dragData?.id ?? null })
+      return
+    }
+    const files = event.dataTransfer?.files
+    if (files && files.length > 0) {
+      handleFiles(files, rootId)
+    }
+    logDragState('rootDrop', { files: event.dataTransfer?.files?.length ?? 0 })
+  }
+
+  function handleDragOver(event) {
+    const nodeDrag = allowNodeDrag && isNodeDrag(event)
+    const fileDrag = allowExternalFileDrop && hasFilePayload(event)
+    if (!nodeDrag && !fileDrag) return
+    event.preventDefault()
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = nodeDrag ? 'move' : 'copy'
     }
     if (event.target === event.currentTarget) {
       dragOverFolderId = rootId
     }
+    rootDragActive = true
+    logDragState('rootDragOver', { nodeDrag, fileDrag })
   }
 
   function handleDragLeave(event) {
-    if (!allowExternalFileDrop) return
+    const nodeDrag = allowNodeDrag && isNodeDrag(event)
+    const fileDrag = allowExternalFileDrop && hasFilePayload(event)
+    if (!nodeDrag && !fileDrag) return
     if (event.target === event.currentTarget) {
       dragOverFolderId = null
+      rootDragActive = false
+      logDragState('rootDragLeave', { nodeDrag, fileDrag })
     }
   }
 
@@ -821,21 +888,47 @@
     overflow-y: auto;
     min-height: 0;
     position: relative;
+    display: flex;
+    flex-direction: column;
   }
 
   .tree {
     list-style: none;
     margin: 0;
     padding: 6px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
   }
 
-  .tree-item {
+  :global(.tree-item) {
     list-style: none;
+  }
+
+  :global(.tree-item.root) {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  :global(.tree-item.root > .tree-node) {
+    flex: 1;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  :global(.tree-item.root > .tree-node > .tree-children) {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
   }
 
   :global(.tree-node) {
     display: flex;
     flex-direction: column;
+    position: relative;
   }
 
   :global(.item-content) {
@@ -924,6 +1017,25 @@
   :global(.item-action.danger:hover) {
     background: #5a1d1d;
     color: #f48771;
+  }
+
+  :global(.tree-item.folder.drag-over > .tree-node::after) {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 6px;
+    border: 1px dashed #007acc;
+    background: rgba(14, 99, 156, 0.12);
+    pointer-events: none;
+  }
+
+  :global(.tree-item.folder.drag-over > .tree-node > .item-content) {
+    background: rgba(14, 99, 156, 0.35);
+  }
+
+  :global(.tree-item.dragging-document > .tree-node > .item-content),
+  :global(.tree-item.dragging-folder > .tree-node > .item-content) {
+    opacity: 0.6;
   }
 
   .upload-hint {
