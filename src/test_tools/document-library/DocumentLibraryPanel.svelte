@@ -1,13 +1,11 @@
 <script>
-  import { onMount, tick } from 'svelte';
+  import { onMount } from 'svelte';
   import { eventBus, getAuthStore, ideStore, indexedDBService } from 'svelte-ide';
-  import DocumentTreeNode from './DocumentTreeNode.svelte';
+  import GenericElementTree from '@/components/ui/generic-element-tree/GenericElementTree.svelte';
   import DocumentViewerTab from './DocumentViewerTab.svelte';
   import { TAB_PREFIX, TOOL_ICON, TOOL_ID, TOOL_NAME, VIEWER_RESOURCE_ID } from './constants.js';
   import { documentPersistenceService } from './documentPersistenceService.js';
   import {
-      ChevronDownIcon,
-      ChevronRightIcon,
       FileIcon,
       FileSpreadsheetIcon,
       FileTextIcon,
@@ -31,24 +29,12 @@
   const getBackendUrl = (path) => `${backendBaseUrl}${path}`
 
   const ROOT_ID = 'documents-root'
-  const NODE_DRAG_TYPE = 'application/x-document-library-node'
-  const CONTEXT_MENU_INITIAL = { visible: false, x: 0, y: 0, targetId: null, targetType: null }
   const HEADER_MENU_INITIAL = { visible: false, x: 0, y: 0 }
-  const FOLDER_DIALOG_INITIAL = { visible: false, parentId: null, name: '' }
-  const MOVE_DIALOG_INITIAL = { visible: false, documentId: null, targetFolderId: ROOT_ID }
   const STORAGE_NAMESPACES = ['documents', 'document-library-tree', 'document-backend-responses', 'document-library-meta']
 
   let tree = $state(createRootFolder())
   let expandedFolders = $state({ [ROOT_ID]: true })
-  let contextMenu = $state({ ...CONTEXT_MENU_INITIAL })
   let headerMenu = $state({ ...HEADER_MENU_INITIAL })
-  let folderDialog = $state({ ...FOLDER_DIALOG_INITIAL })
-  let moveDialog = $state({ ...MOVE_DIALOG_INITIAL })
-  let draggedNodeId = $state(null)
-  let draggedNodeType = $state(null)
-  let dragOverFolderId = $state(null)
-  let fileInputRef = $state(null)
-  let folderDialogInputRef = $state(null)
   let isRestoring = $state(true)
   let hydrationInProgress = $state(false)
   let manualHydrationDepth = 0
@@ -57,8 +43,6 @@
 
   let saveTreeTimeout = null
   let saveExpandedTimeout = null
-
-  const folderOptions = $derived(buildFolderOptions(tree))
 
   function createRootFolder() {
     return {
@@ -78,17 +62,8 @@
     return a.nodeType === 'folder' ? -1 : 1
   }
 
-  function getSortedChildren(node) {
-    if (!node?.children) return []
-    return [...node.children].sort(compareNodes)
-  }
-
   function generateDocumentId() {
     return `${TAB_PREFIX}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-  }
-
-  function generateFolderId() {
-    return `folder-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
   }
 
   function updateTree(mutator) {
@@ -148,18 +123,6 @@
     return null
   }
 
-  function buildFolderOptions(node, ancestors = []) {
-    if (!node || node.nodeType !== 'folder') return []
-    const path = [...ancestors, node.name]
-    let options = [{ id: node.id, label: path.join(' / ') }]
-    for (const child of getSortedChildren(node)) {
-      if (child.nodeType === 'folder') {
-        options = options.concat(buildFolderOptions(child, path))
-      }
-    }
-    return options
-  }
-
   function shouldHandleStorageImport(namespaces) {
     if (!Array.isArray(namespaces)) {
       return false
@@ -201,11 +164,118 @@
     return FileIcon
   }
 
-  function toggleFolder(folderId) {
-    expandedFolders = {
-      ...expandedFolders,
-      [folderId]: !expandedFolders[folderId]
+  function buildTreeContextMenu(node, helpers) {
+    if (!node || !helpers) return []
+    const items = []
+    if (node.nodeType === 'folder') {
+      items.push({
+        id: 'new-folder',
+        label: 'Nouveau dossier',
+        action: () => helpers.startFolderDialog(node.id)
+      })
     }
+    if (node.nodeType === 'document') {
+      items.push(
+        {
+          id: 'open',
+          label: 'Sélectionner',
+          action: () => openDocument(node.id)
+        },
+        {
+          id: 'move',
+          label: 'Déplacer vers…',
+          action: () => helpers.startMoveDialog(node.id)
+        },
+        {
+          id: 'delete',
+          label: 'Supprimer',
+          danger: true,
+          action: () => helpers.deleteNode(node.id)
+        }
+      )
+    }
+    return items
+  }
+
+  function buildInlineActions(node) {
+    if (!node || node.nodeType !== 'document') return []
+    return [
+      {
+        id: 'send-backend',
+        icon: UploadIcon({ size: 12 }).svg,
+        title: 'Envoyer au backend',
+        ariaLabel: `Envoyer ${node.name} au backend`,
+        run: () => sendToBackend(node.id)
+      },
+      {
+        id: 'delete-document',
+        icon: Trash2Icon({ size: 12 }).svg,
+        title: 'Supprimer',
+        ariaLabel: `Supprimer ${node.name}`,
+        danger: true,
+        run: ({ helpers }) => helpers.deleteNode(node.id)
+      }
+    ]
+  }
+
+  function resolveNodeIconForTree(node, meta = {}) {
+    if (meta.isFolder) {
+      return FolderIcon({ size: 14 })
+    }
+    const iconFactory = getFileIcon(node?.name ?? '', node?.type ?? '')
+    return iconFactory({ size: 14 })
+  }
+
+  function handleNodeOpen(node) {
+    if (!node || node.nodeType !== 'document') return
+    openDocument(node.id)
+  }
+
+  function handleTreeChange(event) {
+    if (!event?.tree) return
+    tree = event.tree
+    saveTreeDebounced()
+
+    if (event.reason === 'folder-created') {
+      if (event.node?.name) {
+        ideStore.addLog(`Dossier "${event.node.name}" créé`, 'info', TOOL_NAME)
+      }
+      return
+    }
+
+    if (event.reason === 'node-moved' && event.node) {
+      const label = event.node.nodeType === 'folder' ? 'Dossier' : 'Document'
+      ideStore.addLog(`${label} "${event.node.name}" déplacé`, 'info', TOOL_NAME)
+      return
+    }
+
+    if (event.reason === 'node-deleted') {
+      handleNodeDeleted(event.node)
+    }
+  }
+
+  function handleNodeDeleted(node) {
+    if (!node) return
+    if (node.nodeType !== 'document') return
+
+    if (binaryPersister) {
+      binaryPersister.deleteBlob(node.id).catch(error => {
+        console.error(`Failed to delete blob ${node.id}:`, error)
+      })
+    }
+
+    ideStore.addLog(`Document "${node.name}" supprimé`, 'info', TOOL_NAME)
+    removeDocument(node.id)
+  }
+
+  function handleFilesSelected({ files, targetFolderId }) {
+    if (!files || files.length === 0) return
+    handleFiles(files, targetFolderId || ROOT_ID)
+  }
+
+  function handleExpandedFoldersChange(payload) {
+    if (!payload?.expandedState) return
+    expandedFolders = { ...payload.expandedState }
     saveExpandedFoldersDebounced()
   }
 
@@ -287,49 +357,6 @@
     )
   }
 
-  function handleDrop(event) {
-    event.preventDefault()
-    event.stopPropagation()
-    dragOverFolderId = null
-
-    const files = event.dataTransfer?.files
-    if (files && files.length > 0) {
-      handleFiles(files)
-    }
-  }
-
-  function handleDragOver(event) {
-    const nodeDrag = isNodeDrag(event)
-    const fileDrag = hasFilePayload(event)
-    if (!nodeDrag && !fileDrag) return
-    event.preventDefault()
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = nodeDrag ? 'move' : 'copy'
-    }
-    if (event.target === event.currentTarget) {
-      dragOverFolderId = ROOT_ID
-    }
-  }
-
-  function handleDragLeave(event) {
-    if (event.target === event.currentTarget) {
-      dragOverFolderId = null
-    }
-  }
-
-  function handleFileInput(event) {
-    const files = event.target?.files
-    if (files && files.length > 0) {
-      handleFiles(files)
-      event.target.value = ''
-    }
-  }
-
-  function openFileInput() {
-    closeHeaderMenu()
-    fileInputRef?.click()
-  }
-
   async function openDocument(documentId) {
     const doc = findNodeById(tree, documentId)
     if (!doc || doc.nodeType !== 'document') return
@@ -369,29 +396,6 @@
 
     ideStore.setActiveTab(VIEWER_TAB_ID)
     ideStore.addLog(`Document "${doc.name}" affiché dans le viewer`, 'info', TOOL_NAME)
-  }
-
-  function deleteDocument(documentId) {
-    if (!binaryPersister) {
-      ideStore.addLog('Persistance non disponible', 'error', TOOL_NAME)
-      return
-    }
-
-    let removedDocument = null
-    updateTree(currentTree => {
-      removedDocument = removeNodeById(currentTree, documentId)
-    })
-
-    if (!removedDocument) return
-    const doc = /** @type {any} */ (removedDocument)
-    if (doc.nodeType !== 'document') return
-
-    binaryPersister.deleteBlob(doc.id).catch(error => {
-      console.error(`Failed to delete blob ${doc.id}:`, error)
-    })
-
-    ideStore.addLog(`Document "${doc.name}" supprimé`, 'info', TOOL_NAME)
-    removeDocument(documentId)
   }
 
   async function sendToBackend(documentId) {
@@ -464,124 +468,6 @@
     }
   }
 
-  function moveNode(nodeId, targetFolderId) {
-    if (!nodeId || !targetFolderId) return
-    const nodeToMove = findNodeById(tree, nodeId)
-    if (!nodeToMove) return
-    if (nodeToMove.id === ROOT_ID) return
-
-    if (nodeToMove.nodeType === 'folder') {
-      if (nodeToMove.parentId === targetFolderId) return
-      if (targetFolderId === nodeToMove.id) return
-      if (isAncestor(targetFolderId, nodeToMove.id)) return
-    } else if (nodeToMove.parentId === targetFolderId) {
-      return
-    }
-
-    let movedNode = null
-    updateTree(currentTree => {
-      movedNode = removeNodeById(currentTree, nodeId)
-      if (!movedNode) return
-      const targetFolder = findFolderById(currentTree, targetFolderId) ?? currentTree
-      movedNode.parentId = targetFolder.id
-      targetFolder.children = [...targetFolder.children, movedNode]
-    })
-
-    if (movedNode) {
-      expandedFolders = { ...expandedFolders, [targetFolderId]: true }
-      const node = /** @type {any} */ (movedNode)
-      const label = node.nodeType === 'folder' ? 'Dossier' : 'Document'
-      ideStore.addLog(`${label} "${node.name}" déplacé`, 'info', TOOL_NAME)
-    }
-  }
-
-  function startFolderDialog(parentId) {
-    closeContextMenu()
-    folderDialog = { visible: true, parentId: parentId ?? ROOT_ID, name: '' }
-    tick().then(() => {
-      folderDialogInputRef?.focus()
-      folderDialogInputRef?.select()
-    })
-  }
-
-  function confirmFolderDialog() {
-    if (!folderDialog.visible) return
-    const name = folderDialog.name.trim()
-    if (!name) return
-    createFolder(folderDialog.parentId || ROOT_ID, name)
-    folderDialog = { ...FOLDER_DIALOG_INITIAL }
-  }
-
-  function cancelFolderDialog() {
-    folderDialog = { ...FOLDER_DIALOG_INITIAL }
-  }
-
-  function createFolder(parentId, name) {
-    const newFolder = {
-      id: generateFolderId(),
-      name,
-      nodeType: 'folder',
-      parentId: parentId || ROOT_ID,
-      children: []
-    }
-
-    updateTree(currentTree => {
-      const parentFolder = findFolderById(currentTree, newFolder.parentId) ?? currentTree
-      parentFolder.children = [...parentFolder.children, newFolder]
-    })
-
-    expandedFolders = {
-      ...expandedFolders,
-      [newFolder.parentId]: true,
-      [newFolder.id]: true
-    }
-
-    ideStore.addLog(`Dossier "${name}" créé`, 'info', TOOL_NAME)
-  }
-
-  function startMoveDialog(documentId) {
-    closeContextMenu()
-    const doc = findNodeById(tree, documentId)
-    moveDialog = {
-      visible: true,
-      documentId,
-      targetFolderId: doc?.parentId || ROOT_ID
-    }
-  }
-
-  function confirmMoveDialog() {
-    if (!moveDialog.visible) return
-    moveNode(moveDialog.documentId, moveDialog.targetFolderId)
-    moveDialog = { ...MOVE_DIALOG_INITIAL }
-  }
-
-  function cancelMoveDialog() {
-    moveDialog = { ...MOVE_DIALOG_INITIAL }
-  }
-
-  function openContextMenu(event, node) {
-    event.preventDefault()
-    event.stopPropagation()
-    closeHeaderMenu()
-    contextMenu = {
-      visible: true,
-      x: event.clientX,
-      y: event.clientY,
-      targetId: node.id,
-      targetType: node.nodeType
-    }
-  }
-
-  function handleBlankContextMenu(event) {
-    if (event.target.closest('.item-content')) return
-    openContextMenu(event, tree)
-  }
-
-  function closeContextMenu() {
-    if (!contextMenu.visible) return
-    contextMenu = { ...CONTEXT_MENU_INITIAL }
-  }
-
   function toggleHeaderMenu(event) {
     event.preventDefault()
     event.stopPropagation()
@@ -589,7 +475,6 @@
       closeHeaderMenu()
       return
     }
-    closeContextMenu()
     const rect = event.currentTarget.getBoundingClientRect()
     headerMenu = {
       visible: true,
@@ -606,142 +491,6 @@
   function handleAlloAction() {
     ideStore.addLog('allo', 'info', 'Core')
     closeHeaderMenu()
-  }
-
-  function isNodeDrag(event) {
-    const types = event?.dataTransfer?.types
-    if (!types) return false
-    if (typeof types.includes === 'function') {
-      return types.includes(NODE_DRAG_TYPE)
-    }
-    if (typeof types.contains === 'function') {
-      return types.contains(NODE_DRAG_TYPE)
-    }
-    return Array.from(types).includes(NODE_DRAG_TYPE)
-  }
-
-  function hasFilePayload(event) {
-    const dataTransfer = event?.dataTransfer
-    if (!dataTransfer) return false
-    if (dataTransfer.files && dataTransfer.files.length > 0) {
-      return true
-    }
-    const types = dataTransfer.types
-    if (!types) return false
-    if (typeof types.includes === 'function') {
-      return types.includes('Files')
-    }
-    if (typeof types.contains === 'function') {
-      return types.contains('Files')
-    }
-    return Array.from(types).includes('Files')
-  }
-
-  function getTargetFolderId(folderId) {
-    return folderId || ROOT_ID
-  }
-
-  function isLeavingDropZone(event) {
-    const current = event?.currentTarget
-    if (!current) return true
-    const next = event?.relatedTarget
-    if (!next) return true
-    return !current.contains(next)
-  }
-
-  function getDragData(event) {
-    const raw = event?.dataTransfer?.getData(NODE_DRAG_TYPE)
-    if (raw) {
-      try {
-        return JSON.parse(raw)
-      } catch (error) {
-        // ignore invalid payload, fallback to local state
-      }
-    }
-    if (draggedNodeId && draggedNodeType) {
-      return { id: draggedNodeId, type: draggedNodeType }
-    }
-    return null
-  }
-
-  function handleNodeDragStart(event, node) {
-    if (!node) return
-    draggedNodeId = node.id
-    draggedNodeType = node.nodeType
-    dragOverFolderId = null
-    if (event.dataTransfer) {
-      event.dataTransfer.setData(NODE_DRAG_TYPE, JSON.stringify({ id: node.id, type: node.nodeType }))
-      event.dataTransfer.effectAllowed = 'move'
-    }
-  }
-
-  function handleNodeDragEnd() {
-    draggedNodeId = null
-    draggedNodeType = null
-    dragOverFolderId = null
-  }
-
-  function handleFolderDragOver(event, folderId) {
-    const targetFolderId = getTargetFolderId(folderId)
-    if (isNodeDrag(event)) {
-      const dragData = getDragData(event)
-      if (!dragData) return
-      if (dragData.id === targetFolderId) return
-      if (dragData.type === 'folder' && isAncestor(targetFolderId, dragData.id)) return
-      const draggedNode = findNodeById(tree, dragData.id)
-      if (!draggedNode || draggedNode.parentId === targetFolderId) return
-      event.preventDefault()
-      event.stopPropagation()
-      if (event.dataTransfer) {
-        event.dataTransfer.dropEffect = 'move'
-      }
-      dragOverFolderId = targetFolderId
-      return
-    }
-
-    if (hasFilePayload(event)) {
-      event.preventDefault()
-      event.stopPropagation()
-      if (event.dataTransfer) {
-        event.dataTransfer.dropEffect = 'copy'
-      }
-      dragOverFolderId = targetFolderId
-    }
-  }
-
-  function handleFolderDrop(event, folderId) {
-    const targetFolderId = getTargetFolderId(folderId)
-    const nodeDrag = isNodeDrag(event)
-    const fileDrag = hasFilePayload(event)
-    if (!nodeDrag && !fileDrag) return
-    event.preventDefault()
-    event.stopPropagation()
-    dragOverFolderId = null
-
-    if (nodeDrag) {
-      const dragData = getDragData(event)
-      draggedNodeId = null
-      draggedNodeType = null
-      if (dragData?.id) {
-        moveNode(dragData.id, targetFolderId)
-      }
-      return
-    }
-
-    const files = event.dataTransfer?.files
-    if (files && files.length > 0) {
-      handleFiles(files, targetFolderId)
-    }
-  }
-
-  function handleFolderDragLeave(event, folderId) {
-    const targetFolderId = getTargetFolderId(folderId)
-    if (dragOverFolderId !== targetFolderId) return
-    if (!isLeavingDropZone(event)) return
-    if (isNodeDrag(event) || hasFilePayload(event)) {
-      event.stopPropagation()
-      dragOverFolderId = null
-    }
   }
 
   async function restoreFilesFromBlobs(treeNode) {
@@ -873,33 +622,17 @@
     })
 
     function handleWindowClick() {
-      closeContextMenu()
       closeHeaderMenu()
     }
 
     function handleWindowKeydown(event) {
       if (event.key === 'Escape') {
-        closeContextMenu()
         closeHeaderMenu()
       }
     }
 
-    function resetGlobalDragState() {
-      dragOverFolderId = null
-    }
-
-    function handleWindowDragEnd() {
-      resetGlobalDragState()
-    }
-
-    function handleWindowDrop() {
-      resetGlobalDragState()
-    }
-
     window.addEventListener('click', handleWindowClick)
     window.addEventListener('keydown', handleWindowKeydown)
-    window.addEventListener('dragend', handleWindowDragEnd)
-    window.addEventListener('drop', handleWindowDrop)
 
     return () => {
       unsubscribeHydrationBefore()
@@ -907,8 +640,6 @@
       unsubscribeStorageImported()
       window.removeEventListener('click', handleWindowClick)
       window.removeEventListener('keydown', handleWindowKeydown)
-      window.removeEventListener('dragend', handleWindowDragEnd)
-      window.removeEventListener('drop', handleWindowDrop)
     }
   })
 
@@ -944,15 +675,6 @@
     </button>
   </header>
 
-  <input
-    bind:this={fileInputRef}
-    type="file"
-    multiple
-    onchange={handleFileInput}
-    style="display: none"
-    aria-label="Sélectionner des fichiers"
-  />
-
   {#if headerMenu.visible}
     <div
       class="context-menu"
@@ -972,145 +694,28 @@
       </button>
     </div>
   {/if}
-
-  <div
-    class="content"
-    ondrop={handleDrop}
-    ondragover={handleDragOver}
-    ondragleave={handleDragLeave}
-    oncontextmenu={handleBlankContextMenu}
-    role="region"
-    aria-label="Zone de dépôt de fichiers"
-  >
-    <ul class="tree" role="tree">
-      <DocumentTreeNode
-        node={tree}
-        depth={0}
-        {expandedFolders}
-        {dragOverFolderId}
-        {draggedNodeId}
-        {draggedNodeType}
-        ROOT_ID={ROOT_ID}
-        {getSortedChildren}
-        {openDocument}
-        {toggleFolder}
-        {openContextMenu}
-        {handleNodeDragStart}
-        {handleNodeDragEnd}
-        {handleFolderDragOver}
-        {handleFolderDragLeave}
-        {handleFolderDrop}
-        {sendToBackend}
-        {deleteDocument}
-        {getFileIcon}
-        UploadIcon={UploadIcon}
-        Trash2Icon={Trash2Icon}
-        FolderIcon={FolderIcon}
-        ChevronDownIcon={ChevronDownIcon}
-        ChevronRightIcon={ChevronRightIcon}
-        isRoot={true}
-      />
-    </ul>
-
-  </div>
-
-  <button
-    type="button"
-    class="upload-hint"
-    onclick={openFileInput}
-    aria-label="Importer des documents"
-    title="Importer des documents"
-  >
-    <span class="upload-hint-icon">{@html UploadIcon({ size: 20 }).svg}</span>
-    <span class="upload-hint-text">Déposez ou importez vos documents pour commencer</span>
-  </button>
-
-  {#if contextMenu.visible}
-    <div
-      class="context-menu"
-      role="menu"
-      tabindex="-1"
-      style={`top: ${contextMenu.y}px; left: ${contextMenu.x}px`}
-      onclick={(event) => event.stopPropagation()}
-      onkeydown={(event) => {
-        event.stopPropagation()
-        if (event.key === 'Escape') {
-          closeContextMenu()
-        }
-      }}
-    >
-      {#if contextMenu.targetType === 'folder'}
-        <button type="button" onclick={() => startFolderDialog(contextMenu.targetId)}>
-          Nouveau dossier
-        </button>
-      {:else if contextMenu.targetType === 'document'}
-        <button type="button" onclick={() => { openDocument(contextMenu.targetId); closeContextMenu() }}>
-          Sélectionner
-        </button>
-        <button type="button" onclick={() => startMoveDialog(contextMenu.targetId)}>
-          Déplacer vers…
-        </button>
-        <button type="button" class="danger" onclick={() => { deleteDocument(contextMenu.targetId); closeContextMenu() }}>
-          Supprimer
-        </button>
-      {/if}
-    </div>
-  {/if}
-
-  {#if folderDialog.visible}
-    <div class="modal-backdrop" role="presentation">
-      <form
-        class="modal"
-        onsubmit={(event) => {
-          event.preventDefault()
-          confirmFolderDialog()
-        }}
-      >
-        <h3>Nouveau dossier</h3>
-        <label>
-          Nom du dossier
-          <input
-            bind:this={folderDialogInputRef}
-            type="text"
-            bind:value={folderDialog.name}
-            placeholder="Nom"
-            required
-          />
-        </label>
-        <div class="modal-actions">
-          <button type="button" class="secondary" onclick={cancelFolderDialog}>Annuler</button>
-          <button type="submit">Créer</button>
-        </div>
-      </form>
-    </div>
-  {/if}
-
-  {#if moveDialog.visible}
-    {@const docToMove = findNodeById(tree, moveDialog.documentId)}
-    <div class="modal-backdrop" role="presentation">
-      <form
-        class="modal"
-        onsubmit={(event) => {
-          event.preventDefault()
-          confirmMoveDialog()
-        }}
-      >
-        <h3>Déplacer « {docToMove?.name ?? 'Document'} »</h3>
-        <label>
-          Destination
-          <select bind:value={moveDialog.targetFolderId}>
-            {#each folderOptions as option}
-              <option value={option.id}>{option.label}</option>
-            {/each}
-          </select>
-        </label>
-        <div class="modal-actions">
-          <button type="button" class="secondary" onclick={cancelMoveDialog}>Annuler</button>
-          <button type="submit">Déplacer</button>
-        </div>
-      </form>
-    </div>
-  {/if}
+  <GenericElementTree
+    {panelId}
+    title="BIBLIOTHÈQUE"
+    rootName="DOCUMENTS"
+    initialTree={tree}
+    initialExpandedState={expandedFolders}
+    allowFolderCreation={true}
+    allowNodeDrag={true}
+    allowExternalFileDrop={true}
+    showUploadHint={true}
+    showHeader={false}
+    uploadHintText="Déposez ou importez vos documents pour commencer"
+    autoAppendDroppedFiles={false}
+    contextMenuBuilder={buildTreeContextMenu}
+    inlineActionsBuilder={buildInlineActions}
+    resolveNodeIcon={resolveNodeIconForTree}
+    onTreeChange={handleTreeChange}
+    onNodeOpen={handleNodeOpen}
+    onFilesSelected={handleFilesSelected}
+    onExpandedFoldersChange={handleExpandedFoldersChange}
+    sortComparer={compareNodes}
+  />
 </section>
 
 <style>
@@ -1163,189 +768,6 @@
     opacity: 1;
   }
 
-  .content {
-    flex: 1;
-    overflow-y: auto;
-    min-height: 0;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .tree {
-    list-style: none;
-    margin: 0;
-    padding: 6px 0 12px 0;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 100%;
-  }
-
-  :global(.tree-item) {
-    list-style: none;
-    min-height: 22px;
-  }
-
-  :global(.tree-item.root) {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-
-  :global(.tree-item.root > .tree-node) {
-    flex: 1;
-    min-height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-
-  :global(.tree-item.root > .tree-node > .tree-children) {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-
-  :global(.tree-node) {
-    position: relative;
-  }
-
-  :global(.tree-item.folder.drag-over > .tree-node::after) {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 6px;
-    border: 1px dashed #007acc;
-    background: rgba(14, 99, 156, 0.12);
-    pointer-events: none;
-  }
-
-  :global(.tree-item.folder.drag-over > .tree-node > .item-content) {
-    background: rgba(14, 99, 156, 0.35);
-  }
-
-  :global(.tree-item.dragging-document > .tree-node > .item-content),
-  :global(.tree-item.dragging-folder > .tree-node > .item-content) {
-    opacity: 0.6;
-  }
-
-  :global(.tree-children) {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  :global(.item-content) {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    height: 22px;
-    padding: 0 8px;
-    cursor: pointer;
-    position: relative;
-    border-radius: 4px;
-  }
-
-  :global(.item-content:hover) {
-    background: #2a2d2e;
-  }
-
-  :global(.item-content:focus) {
-    outline: none;
-    background: #094771;
-  }
-
-  :global(.twisty) {
-    width: 18px;
-    height: 18px;
-    border: none;
-    background: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #858585;
-    cursor: pointer;
-    flex-shrink: 0;
-    padding: 0;
-  }
-
-  :global(.twisty.placeholder) {
-    width: 18px;
-    height: 18px;
-    display: inline-flex;
-  }
-
-  :global(.item-icon) {
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-    color: #c5c5c5;
-  }
-
-  :global(.item-icon svg) {
-    display: block;
-  }
-
-  :global(.item-label) {
-    flex: 1;
-    font-size: 13px;
-    color: #cccccc;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
-  }
-
-  :global(.item-action) {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    padding: 0;
-    border: none;
-    background: transparent;
-    color: #858585;
-    cursor: pointer;
-    border-radius: 3px;
-    flex-shrink: 0;
-  }
-
-  :global(.item-action:hover) {
-    background: #5a1d1d;
-    color: #f48771;
-  }
-
-  .upload-hint {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px;
-    color: #6a6a6a;
-    font-size: 12px;
-    border-top: 1px solid #2e2e2e;
-    margin: 0 8px;
-    background: transparent;
-    border: none;
-    text-align: left;
-    cursor: pointer;
-    font-family: inherit;
-    flex-shrink: 0;
-  }
-
-  .upload-hint:hover {
-    color: #9a9a9a;
-  }
-
-  .upload-hint-icon {
-    display: flex;
-    opacity: 0.5;
-  }
-
-  .upload-hint-text {
-    font-style: italic;
-  }
-
   .context-menu {
     position: fixed;
     background: #1e1e1e;
@@ -1374,75 +796,5 @@
 
   .context-menu button.danger {
     color: #f48771;
-  }
-
-  .modal-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 30;
-  }
-
-  .modal {
-    background: #1e1e1e;
-    border: 1px solid #3e3e42;
-    border-radius: 8px;
-    padding: 16px;
-    width: 280px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .modal h3 {
-    margin: 0;
-    font-size: 15px;
-    color: #ffffff;
-  }
-
-  .modal label {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 12px;
-    color: #cccccc;
-  }
-
-  .modal input,
-  .modal select {
-    padding: 6px 8px;
-    border-radius: 4px;
-    border: 1px solid #3e3e42;
-    background: #252526;
-    color: #ffffff;
-    font-size: 13px;
-  }
-
-  .modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-  }
-
-  .modal-actions button {
-    border: none;
-    border-radius: 4px;
-    padding: 6px 12px;
-    font-size: 13px;
-    cursor: pointer;
-  }
-
-  .modal-actions .secondary {
-    background: transparent;
-    color: #cccccc;
-    border: 1px solid #3e3e42;
-  }
-
-  .modal-actions button[type='submit'] {
-    background: #0e639c;
-    color: #ffffff;
   }
 </style>

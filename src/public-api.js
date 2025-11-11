@@ -6,6 +6,7 @@ export { default as StatusBarActiveTabItem } from './components/layout/chrome/st
 export { default as StatusBarClockItem } from './components/layout/chrome/statusbar/ClockItem.svelte'
 export { default as StatusBarIndexedDBUsageItem } from './components/layout/chrome/statusbar/IndexedDBUsageItem.svelte'
 export { default as StatusBarMessageItem } from './components/layout/chrome/statusbar/StatusMessageItem.svelte'
+export { default as GenericElementTree } from './components/ui/generic-element-tree/GenericElementTree.svelte'
 export { default as ReAuthModal } from './components/system/ReAuthModal.svelte'
 export { avatarCacheService } from './core/auth/AvatarCacheService.svelte.js'
 export { getTokenSecurityConfig } from './core/auth/tokenSecurityConfig.svelte.js'
