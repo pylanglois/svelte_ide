@@ -1,4 +1,7 @@
 import { eventBus } from '@/core/EventBusService.svelte.js'
+import { createLogger } from '@/lib/logger.js'
+
+const logger = createLogger('core/persistence/storage-persistence')
 
 /**
  * Service de gestion de la persistance durable du stockage navigateur
@@ -33,7 +36,7 @@ import { eventBus } from '@/core/EventBusService.svelte.js'
  * // Demander la persistance au démarrage
  * const granted = await storagePersistenceService.requestPersistence()
  * if (granted) {
- *   console.log('✅ Vos données sont protégées contre la suppression automatique')
+ *   // ✅ Vos données sont protégées contre la suppression automatique
  * }
  * 
  * // Vérifier le statut
@@ -72,7 +75,7 @@ export class StoragePersistenceService {
   async isPersistent() {
     if (!this.isSupported()) {
       if (this._debugMode) {
-        console.warn('StoragePersistenceService: Storage API not supported in this browser')
+        logger.warn('StoragePersistenceService: Storage API not supported in this browser')
       }
       return false
     }
@@ -87,12 +90,12 @@ export class StoragePersistenceService {
       this._persistenceStatus = persisted
       
       if (this._debugMode) {
-        console.log(`StoragePersistenceService: Current persistence status = ${persisted ? '✅ PERSISTENT' : '⚠️ BEST-EFFORT'}`)
+        logger.log(`StoragePersistenceService: Current persistence status = ${persisted ? '✅ PERSISTENT' : '⚠️ BEST-EFFORT'}`)
       }
       
       return persisted
     } catch (error) {
-      console.error('StoragePersistenceService: Failed to check persistence status', error)
+      logger.error('StoragePersistenceService: Failed to check persistence status', error)
       eventBus.publish('storage:persistence-error', { error })
       return false
     }
@@ -118,7 +121,7 @@ export class StoragePersistenceService {
 
     if (!this.isSupported()) {
       if (this._debugMode) {
-        console.warn('StoragePersistenceService: Cannot request persistence - API not supported')
+        logger.warn('StoragePersistenceService: Cannot request persistence - API not supported')
       }
       return false
     }
@@ -126,7 +129,7 @@ export class StoragePersistenceService {
     // Éviter les requêtes multiples simultanées
     if (this._requestInProgress) {
       if (this._debugMode) {
-        console.log('StoragePersistenceService: Request already in progress, waiting...')
+        logger.log('StoragePersistenceService: Request already in progress, waiting...')
       }
       // Attendre que la requête en cours se termine
       while (this._requestInProgress) {
@@ -140,7 +143,7 @@ export class StoragePersistenceService {
       const alreadyPersistent = await this.isPersistent()
       if (alreadyPersistent) {
         if (this._debugMode) {
-          console.log('StoragePersistenceService: Storage is already persistent')
+          logger.log('StoragePersistenceService: Storage is already persistent')
         }
         return true
       }
@@ -150,7 +153,7 @@ export class StoragePersistenceService {
 
     try {
       if (this._debugMode) {
-        console.log('StoragePersistenceService: Requesting persistent storage...')
+        logger.log('StoragePersistenceService: Requesting persistent storage...')
       }
 
       const granted = await navigator.storage.persist()
@@ -158,9 +161,9 @@ export class StoragePersistenceService {
 
       if (this._debugMode) {
         if (granted) {
-          console.log('✅ StoragePersistenceService: Persistent storage GRANTED - Data protected from automatic eviction')
+          logger.log('✅ StoragePersistenceService: Persistent storage GRANTED - Data protected from automatic eviction')
         } else {
-          console.warn('⚠️ StoragePersistenceService: Persistent storage DENIED - Data may be evicted under storage pressure')
+          logger.warn('⚠️ StoragePersistenceService: Persistent storage DENIED - Data may be evicted under storage pressure')
         }
       }
 
@@ -184,7 +187,7 @@ export class StoragePersistenceService {
 
       return granted
     } catch (error) {
-      console.error('StoragePersistenceService: Failed to request persistence', error)
+      logger.error('StoragePersistenceService: Failed to request persistence', error)
       this._persistenceStatus = false
       
       if (!silent) {
@@ -249,7 +252,7 @@ export class StoragePersistenceService {
       }
 
       if (this._debugMode) {
-        console.log('StoragePersistenceService: Quota info', {
+        logger.log('StoragePersistenceService: Quota info', {
           usage: info.usageFormatted,
           quota: info.quotaFormatted,
           percentUsed: `${percentUsed.toFixed(1)}%`
@@ -258,7 +261,7 @@ export class StoragePersistenceService {
 
       return info
     } catch (error) {
-      console.error('StoragePersistenceService: Failed to get quota info', error)
+      logger.error('StoragePersistenceService: Failed to get quota info', error)
       return {
         quota: 0,
         usage: 0,
@@ -287,7 +290,7 @@ export class StoragePersistenceService {
     this._persistenceStatus = null
     this._quotaInfo = null
     if (this._debugMode) {
-      console.log('StoragePersistenceService: Cache invalidated')
+      logger.log('StoragePersistenceService: Cache invalidated')
     }
   }
 

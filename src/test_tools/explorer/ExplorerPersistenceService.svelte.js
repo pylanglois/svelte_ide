@@ -1,7 +1,10 @@
 import { eventBus } from '@/core/EventBusService.svelte.js'
 import { stateProviderService } from '@/core/StateProviderService.svelte.js'
 import { persistenceRegistry } from '@/core/persistence/PersistenceRegistry.svelte.js'
+import { createLogger } from '@/lib/logger.js'
 import { explorerStore } from './explorerStore.svelte.js'
+
+const logger = createLogger('test-tools/explorer/persistence')
 
 const DEFAULT_STATE = {
   selectedItem: null,
@@ -36,7 +39,7 @@ class ExplorerPersistenceService {
     try {
       await this.persister.save('state', this.saveState())
     } catch (error) {
-      console.warn('ExplorerPersistence: failed to persist state', error)
+      logger.warn('ExplorerPersistence: failed to persist state', error)
     }
   }
 
@@ -76,7 +79,7 @@ class ExplorerPersistenceService {
   }
 
   async restoreState(restoredState) {
-    console.log('[ExplorerPersistence] restoreState called', {
+    logger.log('[ExplorerPersistence] restoreState called', {
       hasData: !!restoredState,
       hasFileContents: !!(restoredState?.fileContents)
     })
@@ -92,7 +95,7 @@ class ExplorerPersistenceService {
     
     // Restaurer les contenus de fichiers dans explorerStore
     if (restoredState?.fileContents || restoredState?.fileOriginalContents) {
-      console.log('[ExplorerPersistence] Restoring explorerStore contents')
+      logger.log('[ExplorerPersistence] Restoring explorerStore contents')
       explorerStore.restoreAllContents(
         restoredState.fileContents ?? {},
         restoredState.fileOriginalContents ?? {}
@@ -104,7 +107,7 @@ class ExplorerPersistenceService {
     this.hasRestoredOnce = true
     
     // Publier l'événement pour notifier que l'état est restauré
-    console.log('[ExplorerPersistence] Publishing explorer:state-restored')
+    logger.log('[ExplorerPersistence] Publishing explorer:state-restored')
     eventBus.publish('explorer:state-restored', { 
       state: this.state,
       hasRestoredContent: !!(restoredState?.fileContents)

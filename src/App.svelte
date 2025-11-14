@@ -6,6 +6,7 @@
   import { toolManager } from '@/core/ToolManager.svelte.js';
   import { getAuthStore } from '@/stores/authStore.svelte.js';
   import { ideStore } from '@/stores/ideStore.svelte.js';
+  import { createLogger } from '@/lib/logger.js';
 
   import StatusBar from '@/components/layout/chrome/StatusBar.svelte';
   import TitleBar from '@/components/layout/chrome/TitleBar.svelte';
@@ -19,25 +20,28 @@
 
   const authStore = getAuthStore()
   const PERSISTENCE_READY_TIMEOUT_MS = 10000
+  const appLogger = createLogger('app')
 
   // Synchroniser IndexedDBService avec authStore et attendre que la DB soit vraiment prête
   $effect(() => {
     const key = authStore.encryptionKey
     const encrypted = Boolean(key)
     
+    appLogger.info('SALUT!!!')
+
     // Fonction async pour gérer l'attente de readyForEncryption
     const syncPersistence = async () => {
       if (encrypted) {
         indexedDBService.setEncryptionKey(key)
         binaryStorageService.setEncryptionKey(key)
-        console.debug('App: Encryption keys synchronized for persistence services')
+        appLogger.debug('Encryption keys synchronized for persistence services')
         
         // ✅ ATTENDRE que IndexedDB soit vraiment prête avant de publier l'événement
         try {
           await indexedDBService.readyForEncryption({ timeoutMs: PERSISTENCE_READY_TIMEOUT_MS })
-          console.debug('App: IndexedDB ready for encryption, publishing persistence:ready')
+          appLogger.debug('IndexedDB ready for encryption, publishing persistence:ready')
         } catch (readyError) {
-          console.warn('App: IndexedDB readiness timeout, publishing persistence:ready anyway', readyError)
+          appLogger.warn('IndexedDB readiness timeout, publishing persistence:ready anyway', readyError)
           eventBus.publish('persistence:error', {
             reason: 'timeout',
             error: readyError,
@@ -47,7 +51,7 @@
       } else {
         indexedDBService.clearEncryptionKey()
         binaryStorageService.clearEncryptionKey()
-        console.debug('App: Encryption keys cleared for persistence services')
+        appLogger.debug('Encryption keys cleared for persistence services')
       }
       
       // Publier l'événement seulement APRÈS que readyForEncryption() soit résolu ou timeout
@@ -123,7 +127,7 @@
       try {
         toolManager.registerTool(tool)
       } catch (registrationError) {
-        console.warn('App: failed to register system tool instance', registrationError)
+        appLogger.warn('App: failed to register system tool instance', registrationError)
       }
     }
   }
@@ -142,7 +146,7 @@
         const result = typeof entry === 'function' ? await entry({ toolManager, ideStore }) : entry
         registerToolResult(result)
       } catch (error) {
-        console.warn('App: system tool setup failed', error)
+        appLogger.warn('App: system tool setup failed', error)
       }
     }
   }
@@ -163,7 +167,7 @@
         timeoutMs: PERSISTENCE_READY_TIMEOUT_MS
       })
     } catch (readyError) {
-      console.warn('App: Persistence readiness check failed (continuing with degraded mode)', readyError)
+      appLogger.warn('App: Persistence readiness check failed (continuing with degraded mode)', readyError)
     }
   }
   const KEYBOARD_RESIZE_STEP = 16
@@ -249,7 +253,7 @@
       try {
         await indexedDBService.initialize(['default', 'tools', 'layout', 'preferences'])
         await binaryStorageService.initialize()
-        console.debug('App: Persistence services initialized successfully')
+        appLogger.debug('App: Persistence services initialized successfully')
 
         // ✅ DEMANDER LA PERSISTANCE DURABLE pour protéger contre l'éviction automatique
         // Par défaut activé sauf si explicitement désactivé via VITE_STORAGE_PERSISTENCE_REQUEST=false
@@ -258,14 +262,14 @@
         if (requestPersistence && storagePersistenceService.isSupported()) {
           const granted = await storagePersistenceService.requestPersistence()
           if (granted) {
-            console.log('✅ App: Persistent storage granted - Data protected from automatic eviction')
+            appLogger.log('✅ App: Persistent storage granted - Data protected from automatic eviction')
             ideStore.addNotification({
               type: 'success',
               message: 'Vos données sont protégées contre la suppression automatique',
               duration: 5000
             })
           } else {
-            console.warn('⚠️ App: Persistent storage denied - Data may be evicted under storage pressure')
+            appLogger.warn('⚠️ App: Persistent storage denied - Data may be evicted under storage pressure')
             ideStore.addNotification({
               type: 'warning',
               message: 'Avertissement : Vos données peuvent être supprimées automatiquement par le navigateur. Ajoutez ce site à vos favoris pour éviter la perte de données.',
@@ -273,12 +277,12 @@
             })
           }
         } else if (!requestPersistence) {
-          console.warn('⚠️ App: Storage persistence request disabled via VITE_STORAGE_PERSISTENCE_REQUEST=false')
+          appLogger.warn('⚠️ App: Storage persistence request disabled via VITE_STORAGE_PERSISTENCE_REQUEST=false')
         } else {
-          console.warn('⚠️ App: Storage Persistence API not supported in this browser')
+          appLogger.warn('⚠️ App: Storage Persistence API not supported in this browser')
         }
       } catch (idbError) {
-        console.warn('App: Persistence initialization failed, data persistence may be limited', idbError)
+        appLogger.warn('App: Persistence initialization failed, data persistence may be limited', idbError)
         // Ne pas bloquer l'application, continuer sans IndexedDB
       }
 
@@ -300,7 +304,7 @@
         ideStore.setStatusMessage('')
       }
     } catch (bootstrapError) {
-      console.error('App: bootstrap sequence failed', bootstrapError)
+      appLogger.error('App: bootstrap sequence failed', bootstrapError)
       ideStore.setStatusMessage('')
     }
   })()
@@ -319,7 +323,7 @@
     try {
       await ideStore.restoreUserLayout(authStore.currentUser)
     } catch (layoutError) {
-      console.warn('App: Failed to restore user layout:', layoutError)
+      appLogger.warn('App: Failed to restore user layout:', layoutError)
     } finally {
       layoutRestoreInProgress = false
     }

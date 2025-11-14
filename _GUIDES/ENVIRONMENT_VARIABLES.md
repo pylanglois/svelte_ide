@@ -345,22 +345,30 @@ Ce guide centralise toutes les variables d'environnement disponibles dans le fra
 
 ## Logging et Debug
 
-### `VITE_MODLOG`
+### `VITE_LOG_NAMESPACES`
 - **Type** : `string` (liste séparée par virgules)
-- **Défaut** : *(vide)* → tous les `console.log/info/debug` sont coupés
-- **Description** : Active précisément les modules dont on veut suivre les logs côté navigateur. La valeur est comparée au chemin du fichier (ex : `core/auth/AuthProvider`) en insensible à la casse.
+- **Défaut** : *(vide)* → aucun logger applicatif n'émet (silence complet par défaut)
+- **Description** : Filtre les loggers applicatifs (`createLogger('namespace')`). chaque token est comparé (insensible à la casse) au namespace enregistré, ce qui permet d'activer des zones précises (`components/ui/generic-element-tree`, `core/auth`, etc.).
 - **Valeurs spéciales** :
-  - `*` : ré-active tous les logs (comportement historique)
-  - `auth,hydration` : n'autorise que les fichiers dont le chemin contient `auth` ou `hydration`
+  - `*` : active toutes les sorties (utile pendant le dev)
 - **Exemples** :
   ```bash
-  # Ne loguer que la persistance hydratation + auth
-  VITE_MODLOG=auth,hydration
+  # Ne loguer que les modules GenericElementTree et persistance
+  VITE_LOG_NAMESPACES=generic-element-tree,core/persistence
 
-  # Afficher absolument tous les logs
-  VITE_MODLOG=*
+  # Afficher absolument tous les logs applicatifs
+  VITE_LOG_NAMESPACES=*
   ```
-- **Astuce runtime** : `window.setModLogFilters('auth')` ou `localStorage.MODLOG="auth,hydration"` permettent d'ajuster sans rebuild.
+- **Compatibilité** : `VITE_MODLOG` est désormais déprécié mais reste pris en charge comme alias.
+
+### `VITE_LOG_LEVEL`
+- **Type** : `string` (`debug`, `info`, `warn`, `error`)
+- **Défaut** : `debug` en développement, `info` en production
+- **Description** : Définit le niveau minimum global utilisé par le service de logs (`debug` affiche tout, `warn` ne garde que les avertissements/erreurs, etc.).
+- **Exemples** :
+  ```bash
+  VITE_LOG_LEVEL=warn
+  ```
 
 ### `VITE_AUTH_DEBUG_LOGS`
 *(Déjà documenté dans section Authentification OAuth)*

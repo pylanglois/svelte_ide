@@ -1,6 +1,9 @@
 <script>
+  import { createLogger } from '@/lib/logger.js'
+
   const props = $props()
   const className = $derived(props.className ?? '')
+  const usageLogger = createLogger('components/indexeddb-usage')
 
   let storageInfo = $state({
     quota: null,
@@ -52,7 +55,7 @@
 
       error = null
     } catch (err) {
-      console.warn('IndexedDBUsageItem: Failed to get storage estimate', err)
+      usageLogger.warn('Failed to get storage estimate', err)
       error = 'Erreur'
       storageInfo = {
         quota: null,
@@ -75,7 +78,9 @@
   })
 
   if (import.meta.env.DEV) {
-    $inspect('IndexedDBUsageItem storageInfo', storageInfo)
+    $effect(() => {
+      usageLogger.debug('storageInfo snapshot', storageInfo)
+    })
   }
 </script>
 

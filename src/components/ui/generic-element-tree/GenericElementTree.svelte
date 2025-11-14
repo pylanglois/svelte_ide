@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import ElementTreeNode from './ElementTreeNode.svelte';
   import { FileIcon, FolderIcon, UploadIcon } from './icons.js';
+  import { createLogger } from '@/lib/logger.js';
 
   const NODE_DRAG_TYPE = 'application/x-generic-element-tree-node'
   const CONTEXT_MENU_INITIAL = { visible: false, x: 0, y: 0, items: [] }
@@ -204,10 +205,11 @@
   const folderOptions = $derived(buildFolderOptions(tree))
   const rootId = $derived(tree?.id ?? 'generic-tree-root')
   let rootDragActive = $state(false)
+  const treeLogger = createLogger('components/ui/generic-element-tree')
 
   function logDragState(source, extra = {}) {
     if (!import.meta.env.DEV) return
-    console.log(`[GenericElementTree:${source}]`, {
+    treeLogger.debug(source, {
       dragOverFolderId,
       rootDragActive,
       draggedNodeId,

@@ -1,6 +1,9 @@
 import { namespacedKey } from '@/core/config/appKey.js'
 import { TokenCipher } from '@/core/security/tokenCipher.svelte.js'
+import { createLogger } from '@/lib/logger.js'
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
+
+const logger = createLogger('core/persistence/binary-storage')
 
 const DB_NAME = namespacedKey('binary-storage')
 const METADATA_STORE = 'binary_metadata'
@@ -154,7 +157,7 @@ export class BinaryStorageService {
       }
 
       request.onerror = () => {
-        console.error('BinaryStorageService: Failed to open database', request.error)
+        logger.error('BinaryStorageService: Failed to open database', request.error)
         reject(request.error)
       }
 
@@ -183,12 +186,12 @@ export class BinaryStorageService {
 
   setEncryptionKey(key) {
     if (!key || typeof key !== 'string') {
-      console.warn('BinaryStorageService: Invalid encryption key provided')
+      logger.warn('BinaryStorageService: Invalid encryption key provided')
       return
     }
     this.encryptionKey = key
     this.cipher = new TokenCipher(key)
-    console.debug('BinaryStorageService: Encryption key set', {
+    logger.debug('BinaryStorageService: Encryption key set', {
       keyLength: key.length,
       cipherEnabled: this.cipher.enabled
     })
@@ -197,7 +200,7 @@ export class BinaryStorageService {
   clearEncryptionKey() {
     this.encryptionKey = null
     this.cipher = null
-    console.debug('BinaryStorageService: Encryption key cleared')
+    logger.debug('BinaryStorageService: Encryption key cleared')
   }
 
   async saveBlob(namespace, blobId, data, options = {}) {
@@ -450,7 +453,7 @@ export class BinaryStorageService {
     try {
       manifest = JSON.parse(strFromU8(extracted[EXPORT_MANIFEST]))
     } catch (error) {
-      console.error('BinaryStorageService: Failed to parse manifest', error)
+      logger.error('BinaryStorageService: Failed to parse manifest', error)
       throw new Error('BinaryStorageService: Invalid manifest format')
     }
 
@@ -466,7 +469,7 @@ export class BinaryStorageService {
     for (const entry of manifest.blobs) {
       const filePath = (entry.file || '').replace(/^\.?\/*/, '')
       if (!filePath || !extracted[filePath]) {
-        console.warn('BinaryStorageService: Missing blob payload in archive', { filePath })
+        logger.warn('BinaryStorageService: Missing blob payload in archive', { filePath })
         continue
       }
 
@@ -569,7 +572,7 @@ export class BinaryStorageService {
       return payloadBuffer
     }
     if (!this.cipher || !this.cipher.enabled) {
-      console.warn('BinaryStorageService: Cannot decrypt blob (cipher unavailable)')
+      logger.warn('BinaryStorageService: Cannot decrypt blob (cipher unavailable)')
       return null
     }
     return await this.cipher.decryptBytes(payloadBuffer)

@@ -1,6 +1,9 @@
 import { namespacedKey } from '@/core/config/appKey.js'
 import { TokenCipher } from '@/core/security/tokenCipher.svelte.js'
 import { eventBus } from '@/core/EventBusService.svelte.js'
+import { createLogger } from '@/lib/logger.js'
+
+const logger = createLogger('core/persistence/indexeddb')
 
 const DB_NAME = namespacedKey('app-data')
 const FALLBACK_STRATEGIES = ['block', 'localstorage', 'memory']
@@ -104,7 +107,7 @@ export class IndexedDBService {
       }
 
       request.onerror = () => {
-        console.error('IndexedDBService: Failed to open database', request.error)
+        logger.error('IndexedDBService: Failed to open database', request.error)
         reject(request.error)
       }
 
@@ -113,11 +116,11 @@ export class IndexedDBService {
         this.dbVersion = this.db?.version ?? null
 
         this.db.addEventListener('versionchange', () => {
-          console.warn('IndexedDBService: Database version change detected, closing connection')
+          logger.warn('IndexedDBService: Database version change detected, closing connection')
           this.close()
         })
 
-        console.debug('IndexedDBService: Database opened successfully')
+        logger.debug('IndexedDBService: Database opened successfully')
         resolve(this.db)
       }
 
@@ -125,7 +128,7 @@ export class IndexedDBService {
         const db = event.target.result
         this.dbVersion = db?.version ?? null
         
-        console.debug('IndexedDBService: Upgrading database schema', {
+        logger.debug('IndexedDBService: Upgrading database schema', {
           oldVersion: event.oldVersion,
           newVersion: event.newVersion
         })
@@ -140,7 +143,7 @@ export class IndexedDBService {
             objectStore.createIndex('version', 'version', { unique: false })
             
             this.availableStores.add(storeName)
-            console.debug(`IndexedDBService: Created object store "${storeName}"`)
+            logger.debug(`IndexedDBService: Created object store "${storeName}"`)
           }
         }
       }
@@ -155,16 +158,16 @@ export class IndexedDBService {
    */
   setFallbackStrategy(strategy) {
     if (!strategy || typeof strategy !== 'string') {
-      console.warn('IndexedDBService: invalid fallback strategy type')
+      logger.warn('IndexedDBService: invalid fallback strategy type')
       return
     }
     const normalized = strategy.toLowerCase()
     if (!FALLBACK_STRATEGIES.includes(normalized)) {
-      console.warn('IndexedDBService: unknown fallback strategy', { strategy })
+      logger.warn('IndexedDBService: unknown fallback strategy', { strategy })
       return
     }
     this.fallbackStrategy = normalized
-    console.info('IndexedDBService: fallback strategy set', { strategy: normalized })
+    logger.info('IndexedDBService: fallback strategy set', { strategy: normalized })
   }
 
   /**
@@ -199,13 +202,13 @@ export class IndexedDBService {
     const currentVersion = this.dbVersion || this.db?.version || 1
     const newVersion = currentVersion + 1
 
-    console.debug(`IndexedDBService: Creating store "${storeName}" (version ${newVersion})`)
+    logger.debug(`IndexedDBService: Creating store "${storeName}" (version ${newVersion})`)
 
     this.dbReady = new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, newVersion)
 
       request.onerror = () => {
-        console.error(`IndexedDBService: Failed to create store "${storeName}"`, request.error)
+        logger.error(`IndexedDBService: Failed to create store "${storeName}"`, request.error)
         reject(request.error)
       }
 
@@ -213,7 +216,7 @@ export class IndexedDBService {
         this.db = request.result
         this.dbVersion = this.db?.version ?? null
         this.availableStores.add(storeName)
-        console.debug(`IndexedDBService: Store "${storeName}" created successfully`)
+        logger.debug(`IndexedDBService: Store "${storeName}" created successfully`)
         resolve(this.db)
       }
 
@@ -225,7 +228,7 @@ export class IndexedDBService {
           const objectStore = db.createObjectStore(storeName, { keyPath: 'key' })
           objectStore.createIndex('timestamp', 'timestamp', { unique: false })
           objectStore.createIndex('version', 'version', { unique: false })
-          console.debug(`IndexedDBService: Object store "${storeName}" created in upgrade`)
+          logger.debug(`IndexedDBService: Object store "${storeName}" created in upgrade`)
         }
       }
     })
@@ -240,7 +243,7 @@ export class IndexedDBService {
    */
   setEncryptionKey(key) {
     if (!key || typeof key !== 'string') {
-      console.warn('IndexedDBService: Invalid encryption key provided')
+      logger.warn('IndexedDBService: Invalid encryption key provided')
       return
     }
 
@@ -256,7 +259,7 @@ export class IndexedDBService {
       this._rejectEncryptionReady = null
     }
     
-    console.debug('IndexedDBService: Encryption key set', {
+    logger.debug('IndexedDBService: Encryption key set', {
       keyLength: key.length,
       cipherEnabled: this.cipher.enabled
     })
@@ -270,7 +273,7 @@ export class IndexedDBService {
     this.cipher = null
     this.encryptionReady = false
     this._resetEncryptionReadyPromise('Encryption key cleared')
-    console.debug('IndexedDBService: Encryption key cleared')
+    logger.debug('IndexedDBService: Encryption key cleared')
   }
 
   _createEncryptionReadyPromise() {
@@ -388,7 +391,7 @@ export class IndexedDBService {
 
       // Créer le store s'il n'existe pas
       if (!this.hasStore(storeName)) {
-        console.debug(`IndexedDBService: Store "${storeName}" does not exist, creating it...`)
+        logger.debug(`IndexedDBService: Store "${storeName}" does not exist, creating it...`)
         await this.ensureStore(storeName)
       }
 
@@ -416,22 +419,22 @@ export class IndexedDBService {
 
       return new Promise((resolve, reject) => {
         request.onsuccess = () => {
-          console.debug(`IndexedDBService: Saved "${key}" in "${storeName}"`)
+          logger.debug(`IndexedDBService: Saved "${key}" in "${storeName}"`)
           resolve(true)
         }
 
         request.onerror = () => {
-          console.error(`IndexedDBService: Failed to save "${key}"`, request.error)
+          logger.error(`IndexedDBService: Failed to save "${key}"`, request.error)
           reject(request.error)
         }
       })
     } catch (error) {
       if (!retryAttempted && this._shouldRetryDatabaseOperation(error)) {
-        console.warn('IndexedDBService: Save failed due to closed database, retrying once', error)
+        logger.warn('IndexedDBService: Save failed due to closed database, retrying once', error)
         await this.initialize()
         return this.save(storeName, key, data, true)
       }
-      console.error('IndexedDBService: Save error', error)
+      logger.error('IndexedDBService: Save error', error)
       return false
     }
   }
@@ -449,7 +452,7 @@ export class IndexedDBService {
 
       // Créer le store s'il n'existe pas
       if (!this.hasStore(storeName)) {
-        console.debug(`IndexedDBService: Store "${storeName}" does not exist, creating it...`)
+        logger.debug(`IndexedDBService: Store "${storeName}" does not exist, creating it...`)
         await this.ensureStore(storeName)
         return defaultValue // Store vide, retourner valeur par défaut
       }
@@ -474,7 +477,7 @@ export class IndexedDBService {
               serialized = await this.cipher.decrypt(entry.value)
               
               if (serialized === null) {
-                console.warn(`IndexedDBService: Failed to decrypt "${key}", returning default`)
+                logger.warn(`IndexedDBService: Failed to decrypt "${key}", returning default`)
                 resolve(defaultValue)
                 return
               }
@@ -482,21 +485,21 @@ export class IndexedDBService {
 
             // Désérialiser
             const data = JSON.parse(serialized)
-            console.debug(`IndexedDBService: Loaded "${key}" from "${storeName}"`)
+            logger.debug(`IndexedDBService: Loaded "${key}" from "${storeName}"`)
             resolve(data)
           } catch (error) {
-            console.error(`IndexedDBService: Failed to parse data for "${key}"`, error)
+            logger.error(`IndexedDBService: Failed to parse data for "${key}"`, error)
             resolve(defaultValue)
           }
         }
 
         request.onerror = () => {
-          console.error(`IndexedDBService: Failed to load "${key}"`, request.error)
+          logger.error(`IndexedDBService: Failed to load "${key}"`, request.error)
           resolve(defaultValue)
         }
       })
     } catch (error) {
-      console.error('IndexedDBService: Load error', error)
+      logger.error('IndexedDBService: Load error', error)
       return defaultValue
     }
   }
@@ -521,17 +524,17 @@ export class IndexedDBService {
 
       return new Promise((resolve, reject) => {
         request.onsuccess = () => {
-          console.debug(`IndexedDBService: Deleted "${key}" from "${storeName}"`)
+          logger.debug(`IndexedDBService: Deleted "${key}" from "${storeName}"`)
           resolve(true)
         }
 
         request.onerror = () => {
-          console.error(`IndexedDBService: Failed to delete "${key}"`, request.error)
+          logger.error(`IndexedDBService: Failed to delete "${key}"`, request.error)
           reject(request.error)
         }
       })
     } catch (error) {
-      console.error('IndexedDBService: Delete error', error)
+      logger.error('IndexedDBService: Delete error', error)
       return false
     }
   }
@@ -555,17 +558,17 @@ export class IndexedDBService {
 
       return new Promise((resolve, reject) => {
         request.onsuccess = () => {
-          console.debug(`IndexedDBService: Cleared store "${storeName}"`)
+          logger.debug(`IndexedDBService: Cleared store "${storeName}"`)
           resolve(true)
         }
 
         request.onerror = () => {
-          console.error(`IndexedDBService: Failed to clear "${storeName}"`, request.error)
+          logger.error(`IndexedDBService: Failed to clear "${storeName}"`, request.error)
           reject(request.error)
         }
       })
     } catch (error) {
-      console.error('IndexedDBService: Clear error', error)
+      logger.error('IndexedDBService: Clear error', error)
       return false
     }
   }
@@ -593,12 +596,12 @@ export class IndexedDBService {
         }
 
         request.onerror = () => {
-          console.error(`IndexedDBService: Failed to count "${storeName}"`, request.error)
+          logger.error(`IndexedDBService: Failed to count "${storeName}"`, request.error)
           resolve(0)
         }
       })
     } catch (error) {
-      console.error('IndexedDBService: Count error', error)
+      logger.error('IndexedDBService: Count error', error)
       return 0
     }
   }
@@ -643,7 +646,7 @@ export class IndexedDBService {
                 version: entry.version
               })
             } catch (error) {
-              console.warn(`IndexedDBService: Failed to decrypt entry "${entry.key}"`, error)
+              logger.warn(`IndexedDBService: Failed to decrypt entry "${entry.key}"`, error)
             }
           }
 
@@ -651,12 +654,12 @@ export class IndexedDBService {
         }
 
         request.onerror = () => {
-          console.error(`IndexedDBService: Failed to getAll from "${storeName}"`, request.error)
+          logger.error(`IndexedDBService: Failed to getAll from "${storeName}"`, request.error)
           resolve([])
         }
       })
     } catch (error) {
-      console.error('IndexedDBService: GetAll error', error)
+      logger.error('IndexedDBService: GetAll error', error)
       return []
     }
   }
@@ -669,7 +672,7 @@ export class IndexedDBService {
       this.db.close()
       this.db = null
       this.dbReady = null
-      console.debug('IndexedDBService: Database closed')
+      logger.debug('IndexedDBService: Database closed')
     }
   }
 }

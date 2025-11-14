@@ -27,9 +27,11 @@
  */
 
 import { eventBus } from '@/core/EventBusService.svelte.js'
+import { createLogger } from '@/lib/logger.js'
 import { getAuthStore } from '@/stores/authStore.svelte.js'
 
 const authStore = getAuthStore()
+const testAutoRefreshLogger = createLogger('test-tools/auto-refresh')
 
 // Configuration de test
 let fastExpirationEnabled = false
@@ -42,10 +44,10 @@ export const testAutoRefresh = {
    */
   enableFastExpiration() {
     fastExpirationEnabled = true
-    console.log('🧪 Mode expiration rapide ACTIVÉ')
-    console.log('   → Les tokens expireront dans 30 secondes')
-    console.log('   → Le refresh se déclenchera à 25 secondes')
-    console.log('   → Reconnectez-vous pour appliquer')
+    testAutoRefreshLogger.log('🧪 Mode expiration rapide ACTIVÉ')
+    testAutoRefreshLogger.log('   → Les tokens expireront dans 30 secondes')
+    testAutoRefreshLogger.log('   → Le refresh se déclenchera à 25 secondes')
+    testAutoRefreshLogger.log('   → Reconnectez-vous pour appliquer')
   },
 
   /**
@@ -55,8 +57,8 @@ export const testAutoRefresh = {
     fastExpirationEnabled = false
     refreshFailureCount = 0
     refreshAttemptCounter = 0
-    console.log('🧪 Mode expiration rapide DÉSACTIVÉ')
-    console.log('   → Les tokens retournent à leur durée normale')
+    testAutoRefreshLogger.log('🧪 Mode expiration rapide DÉSACTIVÉ')
+    testAutoRefreshLogger.log('   → Les tokens retournent à leur durée normale')
   },
 
   /**
@@ -65,8 +67,8 @@ export const testAutoRefresh = {
   enableRefreshFailure(failureCount = 1) {
     refreshFailureCount = failureCount
     refreshAttemptCounter = 0
-    console.log(`🧪 Échec de refresh ACTIVÉ : ${failureCount} tentative(s) échoueront`)
-    console.log('   → Utilisé pour tester le retry avec backoff exponentiel')
+    testAutoRefreshLogger.log(`🧪 Échec de refresh ACTIVÉ : ${failureCount} tentative(s) échoueront`)
+    testAutoRefreshLogger.log('   → Utilisé pour tester le retry avec backoff exponentiel')
   },
 
   /**
@@ -76,7 +78,7 @@ export const testAutoRefresh = {
   shouldSimulateRefreshFailure() {
     if (refreshFailureCount > 0 && refreshAttemptCounter < refreshFailureCount) {
       refreshAttemptCounter++
-      console.log(`🧪 [Simulate] Échec de refresh simulé (${refreshAttemptCounter}/${refreshFailureCount})`)
+      testAutoRefreshLogger.log(`🧪 [Simulate] Échec de refresh simulé (${refreshAttemptCounter}/${refreshFailureCount})`)
       return true
     }
     return false
@@ -117,8 +119,8 @@ export const testAutoRefresh = {
       totalRefreshAttempts: refreshAttemptCounter
     }
 
-    console.log('🔍 État du Token et Auto-Refresh :')
-    console.table(state)
+    testAutoRefreshLogger.log('🔍 État du Token et Auto-Refresh :')
+    testAutoRefreshLogger.table(state)
     
     return state
   },
@@ -127,36 +129,36 @@ export const testAutoRefresh = {
    * Démarre un test complet : login → attendre refresh → vérifier clé restaurée
    */
   async runFullAutoRefreshTest() {
-    console.log('🧪 === TEST COMPLET AUTO-REFRESH ===\n')
+    testAutoRefreshLogger.log('🧪 === TEST COMPLET AUTO-REFRESH ===\n')
 
     // 1. Vérifier l'état initial
-    console.log('1️⃣ Vérification état initial...')
+    testAutoRefreshLogger.log('1️⃣ Vérification état initial...')
     if (authStore.isAuthenticated) {
-      console.log('⚠️ Déjà authentifié. Déconnexion...')
+      testAutoRefreshLogger.log('⚠️ Déjà authentifié. Déconnexion...')
       await authStore.logout()
       await new Promise(resolve => setTimeout(resolve, 500))
     }
-    console.log('✅ Déconnecté\n')
+    testAutoRefreshLogger.log('✅ Déconnecté\n')
 
     // 2. Activer le mode expiration rapide
-    console.log('2️⃣ Activation mode expiration rapide (30s)...')
+    testAutoRefreshLogger.log('2️⃣ Activation mode expiration rapide (30s)...')
     this.enableFastExpiration()
-    console.log('✅ Mode activé\n')
+    testAutoRefreshLogger.log('✅ Mode activé\n')
 
     // 3. Se connecter
-    console.log('3️⃣ Connexion avec MockProvider...')
+    testAutoRefreshLogger.log('3️⃣ Connexion avec MockProvider...')
     const loginResult = await authStore.login('mock')
     if (!loginResult.success) {
-      console.error('❌ Échec de connexion:', loginResult.error)
+      testAutoRefreshLogger.error('❌ Échec de connexion:', loginResult.error)
       return
     }
-    console.log('✅ Connexion réussie')
-    console.log('   Authenticated:', authStore.isAuthenticated)
-    console.log('   User:', authStore.userInfo?.name)
-    console.log('   Encryption Key:', authStore.encryptionKey?.substring(0, 20) + '...\n')
+    testAutoRefreshLogger.log('✅ Connexion réussie')
+    testAutoRefreshLogger.log('   Authenticated:', authStore.isAuthenticated)
+    testAutoRefreshLogger.log('   User:', authStore.userInfo?.name)
+    testAutoRefreshLogger.log('   Encryption Key:', authStore.encryptionKey?.substring(0, 20) + '...\n')
 
     // 4. Sauvegarder des données de test dans IndexedDB
-    console.log('4️⃣ Sauvegarde de données de test...')
+    testAutoRefreshLogger.log('4️⃣ Sauvegarde de données de test...')
     const testData = {
       timestamp: Date.now(),
       message: 'Test auto-refresh',
@@ -165,55 +167,55 @@ export const testAutoRefresh = {
     
     if (window.indexedDBService) {
       await window.indexedDBService.save('test-auto-refresh', 'test-key', testData)
-      console.log('✅ Données sauvegardées:', testData, '\n')
+      testAutoRefreshLogger.log('✅ Données sauvegardées:', testData, '\n')
     } else {
-      console.warn('⚠️ IndexedDB non initialisé (attendu si pas dans App.svelte)\n')
+      testAutoRefreshLogger.warn('⚠️ IndexedDB non initialisé (attendu si pas dans App.svelte)\n')
     }
 
     // 5. Attendre le refresh (25 secondes)
-    console.log('5️⃣ Attente du refresh automatique (25 secondes)...')
-    console.log('   → Observez les logs ci-dessous pour voir le refresh se déclencher\n')
+    testAutoRefreshLogger.log('5️⃣ Attente du refresh automatique (25 secondes)...')
+    testAutoRefreshLogger.log('   → Observez les logs ci-dessous pour voir le refresh se déclencher\n')
 
     // Écouter l'événement de refresh réussi
     const unsubscribeRefresh = eventBus.subscribe('auth:token-refreshed', (data) => {
-      console.log('🎉 TOKEN REFRESH RÉUSSI!')
-      console.log('   Nouvelle encryption key:', authStore.encryptionKey?.substring(0, 20) + '...')
-      console.log('   Timestamp:', new Date().toISOString())
+      testAutoRefreshLogger.log('🎉 TOKEN REFRESH RÉUSSI!')
+      testAutoRefreshLogger.log('   Nouvelle encryption key:', authStore.encryptionKey?.substring(0, 20) + '...')
+      testAutoRefreshLogger.log('   Timestamp:', new Date().toISOString())
     })
 
     // Écouter l'événement d'expiration
     const unsubscribeExpired = eventBus.subscribe('auth:session-expired', (data) => {
-      console.error('❌ SESSION EXPIRÉE (tous les retries ont échoué)')
-      console.error('   Message:', data.message)
+      testAutoRefreshLogger.error('❌ SESSION EXPIRÉE (tous les retries ont échoué)')
+      testAutoRefreshLogger.error('   Message:', data.message)
     })
 
     // Attendre 35 secondes pour laisser le temps au refresh de se déclencher
     await new Promise(resolve => setTimeout(resolve, 35000))
 
     // 6. Vérifier que les données sont toujours accessibles
-    console.log('\n6️⃣ Vérification de l\'accès aux données...')
+    testAutoRefreshLogger.log('\n6️⃣ Vérification de l\'accès aux données...')
     if (window.indexedDBService && authStore.hasEncryptionKey) {
       try {
         const loadedData = await window.indexedDBService.load('test-auto-refresh', 'test-key')
         
         if (loadedData && loadedData.message === testData.message) {
-          console.log('✅ SUCCÈS : Données restaurées après refresh!')
-          console.log('   Données:', loadedData)
+          testAutoRefreshLogger.log('✅ SUCCÈS : Données restaurées après refresh!')
+          testAutoRefreshLogger.log('   Données:', loadedData)
         } else {
-          console.error('❌ ÉCHEC : Données incorrectes')
-          console.error('   Attendu:', testData)
-          console.error('   Reçu:', loadedData)
+          testAutoRefreshLogger.error('❌ ÉCHEC : Données incorrectes')
+          testAutoRefreshLogger.error('   Attendu:', testData)
+          testAutoRefreshLogger.error('   Reçu:', loadedData)
         }
       } catch (error) {
-        console.error('❌ ÉCHEC : Erreur lors de la lecture des données')
-        console.error('   Erreur:', error.message)
+        testAutoRefreshLogger.error('❌ ÉCHEC : Erreur lors de la lecture des données')
+        testAutoRefreshLogger.error('   Erreur:', error.message)
       }
     } else {
-      console.warn('⚠️ Impossible de vérifier les données (IndexedDB ou clé manquante)')
+      testAutoRefreshLogger.warn('⚠️ Impossible de vérifier les données (IndexedDB ou clé manquante)')
     }
 
     // 7. Nettoyage
-    console.log('\n7️⃣ Nettoyage...')
+    testAutoRefreshLogger.log('\n7️⃣ Nettoyage...')
     unsubscribeRefresh()
     unsubscribeExpired()
     
@@ -222,52 +224,52 @@ export const testAutoRefresh = {
     }
     
     this.disableFastExpiration()
-    console.log('✅ Nettoyage terminé\n')
+    testAutoRefreshLogger.log('✅ Nettoyage terminé\n')
 
-    console.log('🧪 === TEST TERMINÉ ===')
-    console.log('Vérifiez les logs ci-dessus pour confirmer que :')
-    console.log('  1. Le refresh s\'est déclenché automatiquement à 25s')
-    console.log('  2. La clé de chiffrement a été restaurée')
-    console.log('  3. Les données sont toujours accessibles après refresh')
+    testAutoRefreshLogger.log('🧪 === TEST TERMINÉ ===')
+    testAutoRefreshLogger.log('Vérifiez les logs ci-dessus pour confirmer que :')
+    testAutoRefreshLogger.log('  1. Le refresh s\'est déclenché automatiquement à 25s')
+    testAutoRefreshLogger.log('  2. La clé de chiffrement a été restaurée')
+    testAutoRefreshLogger.log('  3. Les données sont toujours accessibles après refresh')
   },
 
   /**
    * Test du retry : simule 2 échecs puis succès
    */
   async runRetryTest() {
-    console.log('🧪 === TEST RETRY AVEC BACKOFF ===\n')
+    testAutoRefreshLogger.log('🧪 === TEST RETRY AVEC BACKOFF ===\n')
 
     // 1. Préparer l'environnement
-    console.log('1️⃣ Préparation...')
+    testAutoRefreshLogger.log('1️⃣ Préparation...')
     if (!authStore.isAuthenticated) {
-      console.log('   Connexion nécessaire...')
+      testAutoRefreshLogger.log('   Connexion nécessaire...')
       await authStore.login('mock')
     }
-    console.log('✅ Authentifié\n')
+    testAutoRefreshLogger.log('✅ Authentifié\n')
 
     // 2. Activer expiration rapide + échecs
-    console.log('2️⃣ Configuration du test...')
+    testAutoRefreshLogger.log('2️⃣ Configuration du test...')
     this.enableFastExpiration()
     this.enableRefreshFailure(2) // Les 2 premiers essais échoueront
-    console.log('✅ Configuration :')
-    console.log('   - Tokens expirent dans 30s')
-    console.log('   - 2 premiers refresh échoueront')
-    console.log('   - 3ème essai réussira\n')
+    testAutoRefreshLogger.log('✅ Configuration :')
+    testAutoRefreshLogger.log('   - Tokens expirent dans 30s')
+    testAutoRefreshLogger.log('   - 2 premiers refresh échoueront')
+    testAutoRefreshLogger.log('   - 3ème essai réussira\n')
 
-    console.log('3️⃣ Attente du refresh (25s) + observation des retries...')
-    console.log('   → Observez les logs pour voir :')
-    console.log('      - Essai 1 : échec → backoff 2s')
-    console.log('      - Essai 2 : échec → backoff 4s')
-    console.log('      - Essai 3 : succès\n')
+    testAutoRefreshLogger.log('3️⃣ Attente du refresh (25s) + observation des retries...')
+    testAutoRefreshLogger.log('   → Observez les logs pour voir :')
+    testAutoRefreshLogger.log('      - Essai 1 : échec → backoff 2s')
+    testAutoRefreshLogger.log('      - Essai 2 : échec → backoff 4s')
+    testAutoRefreshLogger.log('      - Essai 3 : succès\n')
 
     // Attendre 45 secondes (assez pour les 3 tentatives)
     await new Promise(resolve => setTimeout(resolve, 45000))
 
-    console.log('\n4️⃣ Vérification état final...')
+    testAutoRefreshLogger.log('\n4️⃣ Vérification état final...')
     await this.inspectTokenState()
 
-    console.log('\n🧪 === TEST RETRY TERMINÉ ===')
-    console.log('Vérifiez que vous avez vu 3 tentatives dans les logs')
+    testAutoRefreshLogger.log('\n🧪 === TEST RETRY TERMINÉ ===')
+    testAutoRefreshLogger.log('Vérifiez que vous avez vu 3 tentatives dans les logs')
     
     this.disableFastExpiration()
   }
@@ -290,9 +292,9 @@ if (typeof window !== 'undefined') {
           const data = await clonedResponse.json()
           
           if (data.access_token && data.expires_in) {
-            console.log('🧪 [Intercept] Modification du token pour expiration rapide')
-            console.log(`   Original: expires_in = ${data.expires_in}s`)
-            console.log(`   Modifié:  expires_in = 30s`)
+            testAutoRefreshLogger.log('🧪 [Intercept] Modification du token pour expiration rapide')
+            testAutoRefreshLogger.log(`   Original: expires_in = ${data.expires_in}s`)
+            testAutoRefreshLogger.log(`   Modifié:  expires_in = 30s`)
             
             // Créer une nouvelle réponse avec expires_in modifié
             const modifiedData = {
@@ -318,10 +320,10 @@ if (typeof window !== 'undefined') {
     return result
   }
   
-  console.log('🧪 testAutoRefresh disponible dans window.testAutoRefresh')
-  console.log('   Exemples :')
-  console.log('   - testAutoRefresh.enableFastExpiration()')
-  console.log('   - testAutoRefresh.runFullAutoRefreshTest()')
-  console.log('   - testAutoRefresh.runRetryTest()')
-  console.log('   - testAutoRefresh.inspectTokenState()')
+  testAutoRefreshLogger.info('testAutoRefresh disponible dans window.testAutoRefresh')
+  testAutoRefreshLogger.info('   Exemples :')
+  testAutoRefreshLogger.info('   - testAutoRefresh.enableFastExpiration()')
+  testAutoRefreshLogger.info('   - testAutoRefresh.runFullAutoRefreshTest()')
+  testAutoRefreshLogger.info('   - testAutoRefresh.runRetryTest()')
+  testAutoRefreshLogger.info('   - testAutoRefresh.inspectTokenState()')
 }

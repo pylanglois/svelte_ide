@@ -1,14 +1,17 @@
+import { createLogger } from '@/lib/logger.js'
+
 const DEBUG_ENABLED =
   import.meta.env.DEV ||
   import.meta.env.VITE_AUTH_DEBUG_LOGS === 'true'
 
-const PREFIX = '[auth]'
+const logger = createLogger('auth')
 
 function print(method, message, context) {
+  const logMethod = typeof logger[method] === 'function' ? logger[method] : logger.info
   if (context !== undefined) {
-    console[method](`${PREFIX} ${message}`, context)
+    logMethod(message, context)
   } else {
-    console[method](`${PREFIX} ${message}`)
+    logMethod(message)
   }
 }
 
