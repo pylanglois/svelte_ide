@@ -6,8 +6,8 @@ export { default as StatusBarActiveTabItem } from './components/layout/chrome/st
 export { default as StatusBarClockItem } from './components/layout/chrome/statusbar/ClockItem.svelte'
 export { default as StatusBarIndexedDBUsageItem } from './components/layout/chrome/statusbar/IndexedDBUsageItem.svelte'
 export { default as StatusBarMessageItem } from './components/layout/chrome/statusbar/StatusMessageItem.svelte'
-export { default as GenericElementTree } from './components/ui/generic-element-tree/GenericElementTree.svelte'
 export { default as ReAuthModal } from './components/system/ReAuthModal.svelte'
+export { default as GenericElementTree } from './components/ui/generic-element-tree/GenericElementTree.svelte'
 export { avatarCacheService } from './core/auth/AvatarCacheService.svelte.js'
 export { getTokenSecurityConfig } from './core/auth/tokenSecurityConfig.svelte.js'
 export { APP_KEY, namespacedKey } from './core/config/appKey.js'
@@ -35,8 +35,9 @@ export { LocalStoragePersister, MemoryPersister, PersisterInterface, SimplePersi
 // Persistence implementations (rétrocompatibilité)
 // Rétrocompatibilité (deprecated)
 export { BinaryStorageService, binaryStorageService, getBinaryStorageService } from './core/persistence/BinaryStorageService.svelte.js'
-export { getIndexedDBService, IndexedDBService, indexedDBService } from './core/persistence/IndexedDBService.svelte.js'
+export { IndexedDBService, getIndexedDBService, indexedDBService } from './core/persistence/IndexedDBService.svelte.js'
 export { JsonPersister as IndexedDBPersister } from './core/persistence/JsonPersister.svelte.js'
+export { StoragePersistenceService, getStoragePersistenceService, storagePersistenceService } from './core/persistence/StoragePersistenceService.svelte.js'
 
 // Dérivation de clé de chiffrement
 export {

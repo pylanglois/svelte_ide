@@ -2,6 +2,7 @@
   import { eventBus } from '@/core/EventBusService.svelte.js';
   import { binaryStorageService } from '@/core/persistence/BinaryStorageService.svelte.js';
   import { indexedDBService } from '@/core/persistence/IndexedDBService.svelte.js';
+  import { storagePersistenceService } from '@/core/persistence/StoragePersistenceService.svelte.js';
   import { toolManager } from '@/core/ToolManager.svelte.js';
   import { getAuthStore } from '@/stores/authStore.svelte.js';
   import { ideStore } from '@/stores/ideStore.svelte.js';
@@ -237,6 +238,7 @@
     window.toolManager = toolManager
     window.indexedDBService = indexedDBService // Pour tests manuels dans console
     window.binaryStorageService = binaryStorageService
+    window.storagePersistenceService = storagePersistenceService // Pour tests manuels dans console
 
     try {
       if (initializingStatus) {
@@ -248,6 +250,33 @@
         await indexedDBService.initialize(['default', 'tools', 'layout', 'preferences'])
         await binaryStorageService.initialize()
         console.debug('App: Persistence services initialized successfully')
+
+        // ✅ DEMANDER LA PERSISTANCE DURABLE pour protéger contre l'éviction automatique
+        // Par défaut activé sauf si explicitement désactivé via VITE_STORAGE_PERSISTENCE_REQUEST=false
+        const envValue = import.meta.env.VITE_STORAGE_PERSISTENCE_REQUEST
+        const requestPersistence = envValue === undefined || envValue === 'true' || envValue === true
+        if (requestPersistence && storagePersistenceService.isSupported()) {
+          const granted = await storagePersistenceService.requestPersistence()
+          if (granted) {
+            console.log('✅ App: Persistent storage granted - Data protected from automatic eviction')
+            ideStore.addNotification({
+              type: 'success',
+              message: 'Vos données sont protégées contre la suppression automatique',
+              duration: 5000
+            })
+          } else {
+            console.warn('⚠️ App: Persistent storage denied - Data may be evicted under storage pressure')
+            ideStore.addNotification({
+              type: 'warning',
+              message: 'Avertissement : Vos données peuvent être supprimées automatiquement par le navigateur. Ajoutez ce site à vos favoris pour éviter la perte de données.',
+              duration: 15000
+            })
+          }
+        } else if (!requestPersistence) {
+          console.warn('⚠️ App: Storage persistence request disabled via VITE_STORAGE_PERSISTENCE_REQUEST=false')
+        } else {
+          console.warn('⚠️ App: Storage Persistence API not supported in this browser')
+        }
       } catch (idbError) {
         console.warn('App: Persistence initialization failed, data persistence may be limited', idbError)
         // Ne pas bloquer l'application, continuer sans IndexedDB

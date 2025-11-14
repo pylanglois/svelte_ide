@@ -298,6 +298,28 @@ Ce guide centralise toutes les variables d'environnement disponibles dans le fra
   VITE_INDEXEDDB_ENCRYPTION_KEY=your_base64_aes_key_here==
   ```
 
+### `VITE_STORAGE_PERSISTENCE_REQUEST`
+- **Type** : `boolean`
+- **Défaut** : `true` (activé par défaut)
+- **Description** : Active la demande automatique de persistance durable au démarrage via `navigator.storage.persist()`. Cela protège les données contre la suppression automatique par le navigateur (mode "best-effort").
+  - `true` ou **non défini** : Demande automatiquement la persistance durable (recommandé pour applications critiques)
+  - `false` : Pas de demande automatique, mode best-effort (données peuvent être évincées)
+- **Impact** :
+  - **Avec persistance** : Données protégées contre l'éviction automatique, persistance garantie
+  - **Sans persistance** : Navigateur peut supprimer les données silencieusement après quelques jours/semaines
+- **Exemple** :
+  ```bash
+  # Production : activer (par défaut, peut être omis)
+  VITE_STORAGE_PERSISTENCE_REQUEST=true
+  
+  # Tests éphémères : désactiver explicitement
+  VITE_STORAGE_PERSISTENCE_REQUEST=false
+  
+  # Omis dans .env : comportement par défaut = activé
+  # (pas besoin de définir la variable)
+  ```
+- **Note** : Voir [_DOCS/STORAGE_PERSISTENCE.md](_DOCS/STORAGE_PERSISTENCE.md) pour plus de détails sur l'éviction automatique des données
+
 ---
 
 ## Sécurité et Chiffrement
