@@ -360,6 +360,7 @@ Ce guide centralise toutes les variables d'environnement disponibles dans le fra
   VITE_LOG_NAMESPACES=*
   ```
 - **Compatibilité** : `VITE_MODLOG` est désormais déprécié mais reste pris en charge comme alias.
+- **Documentation complète** : Voir [_DOCS/LOGGER_QUICKSTART.md](../_DOCS/LOGGER_QUICKSTART.md) pour l'usage du système de logging dans vos outils.
 
 ### `VITE_LOG_LEVEL`
 - **Type** : `string` (`debug`, `info`, `warn`, `error`)

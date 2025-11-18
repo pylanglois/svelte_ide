@@ -1,10 +1,6 @@
 # Projet svelte-ide >side<: Interface de développement générique pouvant être adapté à tous les besoins!
 
-* [Vision](../_GUIDES/PRODUCT.md): Contient la vision à haut niveau du projet et les objectifs affaires du projet
-* [Architecture](../_GUIDES/ARCHITECTURE.md): L'architecture générale du projet, les choix de patrons et de design à respecter lors du développement
-* [SVELTE5.md](../_GUIDES/SVELTE5.md): Les normes programmation essentielles à suivre lors du développement.
-
-## Interaction avec l'utilisateur (CONSIGNES)
+⚠️ **RÈGLES D'INTERACTION OBLIGATOIRES - À LIRE EN PREMIER**
 
 - **Réponses brèves et ciblées par défaut.** Va droit au but. Donne uniquement l’information nécessaire pour débloquer l’utilisateur.
 - **N’ajoute des détails ou du contexte étendu que sur demande explicite.** Par exemple si l’utilisateur écrit « explique », « développe », « plus de détails », etc.
@@ -24,3 +20,12 @@
 - **Style général :**
   - Évite le bavardage et les formules de politesse superflues.
   - Pas d’introductions ni de conclusions longues : commence directement par la partie utile de la réponse.
+
+* [Vision](../_GUIDES/PRODUCT.md): Contient la vision à haut niveau du projet et les objectifs affaires du projet
+* [Architecture](../_GUIDES/ARCHITECTURE.md): L'architecture générale du projet, les choix de patrons et de design à respecter lors du développement
+* [SVELTE5.md](../_GUIDES/SVELTE5.md): Les normes programmation essentielles à suivre lors du développement.
+
+## Glossaire  
+
+GeT: GenericElementTree  
+SIDE: Svelte-IDE  

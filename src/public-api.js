@@ -28,6 +28,9 @@ export { SCROLL_MODES } from './core/ScrollModes.svelte.js'
 export { getAuthStore } from './stores/authStore.svelte.js'
 export { ideStore } from './stores/ideStore.svelte.js'
 
+// Logger API
+export { configureLogger, createLogger, getLoggerConfig } from './lib/logger.js'
+
 // Persistence API
 export { BinaryPersister } from './core/persistence/BinaryPersister.svelte.js'
 export { JsonPersister } from './core/persistence/JsonPersister.svelte.js'
