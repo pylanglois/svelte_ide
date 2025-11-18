@@ -40,6 +40,13 @@
     inlineActionBuilder ? inlineActionBuilder(node, inlineActionHelpers) ?? [] : []
   )
   const nodeIcon = $derived(resolveNodeIcon(node, { isFolder }) ?? null)
+
+  function handleItemClick(event) {
+    handlePrimaryAction(node)
+    if (isFolder && event?.detail === 1) {
+      toggleFolder(node.id)
+    }
+  }
 </script>
 
 <li
@@ -64,8 +71,7 @@
     <div
       class="item-content"
       style={`padding-left: ${indent}px`}
-      onclick={() => handlePrimaryAction(node)}
-      ondblclick={() => (isFolder ? toggleFolder(node.id) : undefined)}
+      onclick={(event) => handleItemClick(event)}
       onkeydown={(event) => {
         if (event.key === 'Enter') {
           if (isFolder) {
