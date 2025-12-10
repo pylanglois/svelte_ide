@@ -13,6 +13,9 @@ class MainMenuService {
     const label = typeof config.label === 'string' ? config.label.trim() : ''
     const ariaLabel = typeof config.ariaLabel === 'string' ? config.ariaLabel.trim() : ''
     const icon = typeof config.icon === 'string' ? config.icon.trim() : ''
+    const iconComponent = this._extractComponent(config.iconComponent)
+    const iconProps = this._extractProps(config.iconProps)
+    const hasIcon = !!icon || !!iconComponent
     const normalizedId = this._normalizeId(config.id ?? label ?? icon)
     const order = Number.isFinite(config.order) ? config.order : 0
     const disabled = !!config.disabled
@@ -23,7 +26,7 @@ class MainMenuService {
     }
 
     if (type === 'action') {
-      if (!icon && !label) {
+      if (!hasIcon && !label) {
         logger.warn('MainMenuService: missing icon for action menu', config)
         return null
       }
@@ -42,6 +45,8 @@ class MainMenuService {
         label,
         ariaLabel: ariaLabel || label,
         icon: type === 'action' ? icon : '',
+        iconComponent: type === 'action' ? iconComponent : null,
+        iconProps: type === 'action' ? iconProps : null,
         title: typeof config.title === 'string' ? config.title.trim() : existing.title || '',
         order,
         ownerId: existing.ownerId || ownerId,
@@ -60,6 +65,8 @@ class MainMenuService {
       label,
       ariaLabel: ariaLabel || label,
       icon: type === 'action' ? icon : '',
+      iconComponent: type === 'action' ? iconComponent : null,
+      iconProps: type === 'action' ? iconProps : null,
       title: typeof config.title === 'string' ? config.title.trim() : '',
       order,
       ownerId,
@@ -197,6 +204,8 @@ class MainMenuService {
       previous.ownerId !== next.ownerId ||
       previous.type !== next.type ||
       previous.icon !== next.icon ||
+      previous.iconComponent !== next.iconComponent ||
+      previous.iconProps !== next.iconProps ||
       previous.ariaLabel !== next.ariaLabel ||
       previous.disabled !== next.disabled ||
       previous.title !== next.title ||
@@ -234,6 +243,20 @@ class MainMenuService {
       : ''
     const finalId = base || crypto.randomUUID()
     return prefix ? `${prefix}${finalId}` : finalId
+  }
+
+  _extractComponent(component) {
+    return typeof component === 'function' ? component : null
+  }
+
+  _extractProps(props) {
+    if (!props || typeof props !== 'object') {
+      return null
+    }
+    if (Array.isArray(props)) {
+      return null
+    }
+    return props
   }
 }
 

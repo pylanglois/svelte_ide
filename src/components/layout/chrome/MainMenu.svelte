@@ -91,7 +91,14 @@
           disabled={menu.disabled}
         >
           {#if isActionMenu(menu)}
-            {#if menu.icon}
+            {#if menu.iconComponent}
+              <span class="menu-icon svg-icon" aria-hidden="true">
+                {@render menu.iconComponent({
+                  ...(menu.iconProps || {}),
+                  className: [menu.iconProps?.className, 'menu-icon-svg'].filter(Boolean).join(' ')
+                })}
+              </span>
+            {:else if menu.icon}
               <span class="menu-icon" aria-hidden="true">{menu.icon}</span>
             {:else if menu.label}
               <span class="menu-label">{menu.label}</span>
@@ -247,6 +254,22 @@
   .menu-icon {
     font-size: 14px;
     line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .menu-icon.svg-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .menu-icon-svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+    fill: currentColor;
+    stroke: currentColor;
   }
 
   .menu-label {

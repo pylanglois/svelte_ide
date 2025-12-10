@@ -5,6 +5,7 @@ import ActiveTabItem from '@svelte-ide/components/layout/chrome/statusbar/Active
 import ClockItem from '@svelte-ide/components/layout/chrome/statusbar/ClockItem.svelte'
 import IndexedDBUsageItem from '@svelte-ide/components/layout/chrome/statusbar/IndexedDBUsageItem.svelte'
 import StatusMessageItem from '@svelte-ide/components/layout/chrome/statusbar/StatusMessageItem.svelte'
+import LightningIcon from '@svelte-ide/components/icons/LightningIcon.svelte'
 import { registerBackupMenu } from '@svelte-ide/core/registerBackupMenu.svelte.js'
 import { applyCsp } from '@svelte-ide/core/security/csp.svelte.js'
 import { statusBarService } from '@svelte-ide/core/StatusBarService.svelte.js'
@@ -50,6 +51,20 @@ if (import.meta.env.DEV) {
     action: () => {
       ideStore.addNotification('Action rapide', 'Action de menu déclenchée', 'info', 'demo')
       ideStore.addLog('Action rapide exécutée', 'info', 'demo')
+    }
+  }, 'demo')
+
+  ideStore.registerMenu({
+    id: 'quick-run-svg',
+    type: 'action',
+    iconComponent: LightningIcon,
+    iconProps: { size: 16 },
+    ariaLabel: 'Action rapide SVG',
+    title: 'Action rapide SVG',
+    order: 41,
+    action: () => {
+      ideStore.addNotification('Action rapide SVG', 'Action de menu avec icône SVG déclenchée', 'info', 'demo')
+      ideStore.addLog('Action rapide SVG exécutée', 'info', 'demo')
     }
   }, 'demo')
 
