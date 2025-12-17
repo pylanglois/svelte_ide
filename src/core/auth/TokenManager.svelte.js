@@ -370,10 +370,11 @@ export class TokenManager {
     // Tenter d'extraire l'audience pour migration vers multi-tokens
     const aud = extractAudience(accessToken)
     if (aud) {
+      const previousScopes = this.tokens.get(aud)?.scopes
       this.tokens.set(aud, {
         accessToken,
         expiry: this.tokenExpiry,
-        scopes: []
+        scopes: Array.isArray(previousScopes) && previousScopes.length > 0 ? previousScopes : []
       })
     }
 
@@ -486,6 +487,13 @@ export class TokenManager {
 
           return tokenData.accessToken
         }
+      }
+
+      // Fallback : si aucun scope n'est enregistré, retourner le token par défaut encore valide
+      const onlyScopeLessTokens = this.tokens.size > 0 && Array.from(this.tokens.values()).every(t => !t.scopes || t.scopes.length === 0)
+      if (onlyScopeLessTokens && this.accessToken && this.tokenExpiry && new Date() < this.tokenExpiry) {
+        authWarn('No scoped token found, falling back to default access token', { requested: audienceOrScopes })
+        return this.accessToken
       }
 
       authWarn('No token found for audience or scope', { requested: audienceOrScopes })
@@ -638,6 +646,11 @@ export class TokenManager {
     const expiryTime = this.tokenExpiry.getTime()
     const timeUntilExpiry = expiryTime - now
 
+    const overrideIntervalSeconds = Number(import.meta.env.VITE_AUTH_FORCE_REFRESH_INTERVAL_SECONDS)
+    const overrideIntervalMs = Number.isFinite(overrideIntervalSeconds) && overrideIntervalSeconds > 0
+      ? overrideIntervalSeconds * 1000
+      : null
+
     // Pas de refresh token : expirer proprement à l'échéance de l'access token
     if (!this.refreshToken) {
       const expireSession = () => {
@@ -659,13 +672,17 @@ export class TokenManager {
     }
 
     const refreshLeadTime = 5 * 60 * 1000 // 5 minutes avant expiration
-    const timeUntilRefresh = timeUntilExpiry - refreshLeadTime
+    const defaultTimeUntilRefresh = Math.max(timeUntilExpiry - refreshLeadTime, 0)
+    const timeUntilRefresh = overrideIntervalMs
+      ? Math.min(overrideIntervalMs, Math.max(timeUntilExpiry, 0))
+      : defaultTimeUntilRefresh
 
     if (timeUntilRefresh > 0) {
       // Cas normal : schedule refresh 5 min avant expiration
       authDebug('Auto-refresh scheduled', {
-        expiresAt: this.tokenExpiry.toISOString(),
-        refreshIn: `${Math.floor(timeUntilRefresh / 1000)}s`
+        expiresAt: this.tokenExpiry.toLocaleString(),
+        refreshIn: `${Math.floor(timeUntilRefresh / 1000)}s`,
+        overrideIntervalSeconds: overrideIntervalMs ? Math.floor(overrideIntervalMs / 1000) : undefined
       })
 
       this.refreshTimer = setTimeout(() => {

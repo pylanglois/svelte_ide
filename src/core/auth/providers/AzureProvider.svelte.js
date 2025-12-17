@@ -113,6 +113,8 @@ export class AzureProvider extends AuthProvider {
         hasRefreshToken: Boolean(tokenData.refresh_token),
         scope: tokenData.scope
       })
+
+      this.logRefreshTokenExpiry(tokenData, 'initial-login')
       
       // Extraire les infos utilisateur de l'ID Token
       authDebug('Extracting user info from ID token')
@@ -424,40 +426,158 @@ export class AzureProvider extends AuthProvider {
   }
 
   async refreshToken(refreshToken) {
-    const tokenEndpoint = `${this.authUrl}/${this.config.tenantId}/oauth2/v2.0/token`
+    const scopeList = (this.scope || '').split(' ').filter(Boolean)
+    const customApiScopes = scopeList.filter(scope => scope.startsWith('api://'))
+    const graphScopes = scopeList.filter(scope => !scope.startsWith('api://'))
+
+    const accessTokens = []
+    let latestRefreshToken = refreshToken
+
+    const pushTokenData = (tokenData, requestedScopes, label) => {
+      if (!tokenData?.access_token || !tokenData?.expires_in) {
+        authWarn('Azure refresh did not return an access token', { label })
+        return
+      }
+
+      const scopes = (tokenData.scope || requestedScopes || '').split(' ').filter(Boolean)
+      const audience = this.extractAudienceFromToken(tokenData.access_token)
+
+      accessTokens.push({
+        accessToken: tokenData.access_token,
+        audience,
+        scopes,
+        expiresIn: tokenData.expires_in
+      })
+
+      if (tokenData.refresh_token) {
+        latestRefreshToken = tokenData.refresh_token
+      }
+
+      this.logRefreshTokenExpiry(tokenData, label)
+
+      authDebug('Azure refresh token obtained', {
+        label,
+        audience,
+        scopes,
+        hasRefreshToken: Boolean(tokenData.refresh_token)
+      })
+    }
+
+    try {
+      // 1) Token pour l'API custom (access_as_user)
+      if (customApiScopes.length > 0) {
+        try {
+          const requestedScopes = customApiScopes.join(' ')
+          const customTokenData = await this.refreshTokenWithScopes(latestRefreshToken, requestedScopes)
+          pushTokenData(customTokenData, requestedScopes, 'custom-api')
+        } catch (error) {
+          authWarn('Azure refresh for custom API scopes failed', error)
+        }
+      }
+
+      // 2) Token pour Graph / infos utilisateur
+      if (graphScopes.length > 0) {
+        try {
+          const requestedScopes = graphScopes.join(' ')
+          const graphTokenData = await this.refreshTokenWithScopes(latestRefreshToken, requestedScopes)
+          pushTokenData(graphTokenData, requestedScopes, 'graph-api')
+        } catch (error) {
+          authWarn('Azure refresh for graph scopes failed', error)
+        }
+      }
+
+      // 3) Fallback : au moins un token générique si rien n'a abouti
+      if (accessTokens.length === 0) {
+        const tokenEndpoint = `${this.authUrl}/${this.config.tenantId}/oauth2/v2.0/token`
+        
+        const params = new URLSearchParams({
+          client_id: this.config.clientId,
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken
+        })
     
-    const params = new URLSearchParams({
-      client_id: this.config.clientId,
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken
-    })
+        const response = await fetch(tokenEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: params
+        })
+    
+        if (!response.ok) {
+          const error = await response.json()
+          return {
+            success: false,
+            error: `Token refresh failed: ${error.error_description || error.error}`
+          }
+        }
+    
+        const fallbackTokenData = await response.json()
+        pushTokenData(fallbackTokenData, fallbackTokenData.scope, 'fallback')
+      }
 
-    const response = await fetch(tokenEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: params
-    })
+      if (accessTokens.length === 0) {
+        return {
+          success: false,
+          error: 'Token refresh failed: no access token returned'
+        }
+      }
 
-    if (!response.ok) {
-      const error = await response.json()
+      return {
+        success: true,
+        tokens: {
+          accessTokens,
+          refreshToken: latestRefreshToken
+        }
+      }
+    } catch (error) {
+      authError('Azure token refresh failed', error)
       return {
         success: false,
-        error: `Token refresh failed: ${error.error_description || error.error}`
+        error: error.message
+      }
+    }
+  }
+  
+  logRefreshTokenExpiry(tokenData, context) {
+    const expiryInfo = this.computeRefreshTokenExpiry(tokenData)
+    if (!expiryInfo) {
+      return
+    }
+
+    authDebug('Azure refresh token expiry', {
+      context,
+      expiresAt: expiryInfo.expiresAt.toLocaleString(),
+      remainingSeconds: Math.round(expiryInfo.remainingMs / 1000)
+    })
+  }
+
+  computeRefreshTokenExpiry(tokenData) {
+    if (!tokenData) {
+      return null
+    }
+
+    const nowSeconds = Math.floor(Date.now() / 1000)
+    const expiresIn = Number(tokenData.refresh_token_expires_in)
+    const expiresOn = Number(tokenData.refresh_token_expires_on)
+
+    if (Number.isFinite(expiresIn) && expiresIn > 0) {
+      const remainingMs = expiresIn * 1000
+      return {
+        remainingMs,
+        expiresAt: new Date(Date.now() + remainingMs)
       }
     }
 
-    const tokenData = await response.json()
-    
-    return {
-      success: true,
-      tokens: {
-        accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token || refreshToken,
-        expiresIn: tokenData.expires_in
+    if (Number.isFinite(expiresOn) && expiresOn > nowSeconds) {
+      const remainingMs = (expiresOn - nowSeconds) * 1000
+      return {
+        remainingMs,
+        expiresAt: new Date(expiresOn * 1000)
       }
     }
+
+    return null
   }
 
   async logout() {

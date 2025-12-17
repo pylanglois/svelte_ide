@@ -373,12 +373,27 @@ export class AuthManager {
       const result = await this.activeProvider.refreshToken(refreshToken)
       
       if (result.success) {
-        await this.tokenManager.setTokens(
-          result.tokens.accessToken,
-          result.tokens.refreshToken,
-          result.tokens.expiresIn,
-          this._currentUser
-        )
+        // Support multi-tokens refresh
+        if (result.tokens?.accessTokens && Array.isArray(result.tokens.accessTokens)) {
+          await this.tokenManager.setTokens(
+            result.tokens.accessTokens,
+            result.tokens.refreshToken || refreshToken,
+            this._currentUser
+          )
+        } else if (result.tokens?.accessToken && result.tokens?.expiresIn) {
+          await this.tokenManager.setTokens(
+            result.tokens.accessToken,
+            result.tokens.refreshToken || refreshToken,
+            result.tokens.expiresIn,
+            this._currentUser
+          )
+        } else {
+          authWarn('Refresh response missing tokens payload')
+          return {
+            success: false,
+            error: 'No tokens returned by provider'
+          }
+        }
         
         // Re-dériver la clé de chiffrement après refresh
         // (normalement userInfo ne change pas, mais on régénère par sécurité)
@@ -387,7 +402,7 @@ export class AuthManager {
         }
         
         authDebug('Token refresh successful', { providerId: this.activeProvider.id })
-        return { success: true, accessToken: result.tokens.accessToken }
+        return { success: true, accessToken: this.tokenManager.getAccessToken() }
       }
       
       authError('Token refresh failed', result.error)
