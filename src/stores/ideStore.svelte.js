@@ -9,9 +9,11 @@ import { SCROLL_MODES } from '@svelte-ide/core/ScrollModes.svelte.js'
 import { stateProviderService } from '@svelte-ide/core/StateProviderService.svelte.js'
 import { Tab } from '@svelte-ide/core/Tab.svelte.js'
 import { toolFocusCoordinator } from '@svelte-ide/core/ToolFocusCoordinator.svelte.js'
+import { createLogger } from '@svelte-ide/lib/logger.js'
 import { getAuthStore } from './authStore.svelte.js'
 
 const LAYOUT_SCHEMA_VERSION = 2
+const logger = createLogger('core/ide-store')
 
 const buildUserStorageKey = (user) => {
   if (!user) return null
@@ -559,65 +561,85 @@ class IdeStore {
 
       const layoutData = this._migrateLayoutData(rawLayoutData)
 
+      if (!layoutData?.layout) {
+        return
+      }
+
+      if (!this._isValidLayoutNode(layoutData.layout)) {
+        logger.warn('IdeStore: layout utilisateur corrompu, suppression et réinitialisation déclenchées', {
+          storageKey,
+          user: userKey
+        })
+        await this._handleCorruptedLayout(storageKey, userKey)
+        return
+      }
+
       const pendingHydrations = []
 
-      if (layoutData.layout) {
-        this.closeAllTabs()
-        
-        const allTabsData = this._collectTabsFromLayout(layoutData.layout)
-        
-        const restoredTabs = new Map()
-        
-        for (const tabData of allTabsData) {
-          if (tabData.descriptor) {
-            
-            const tab = new Tab(
-              tabData.id,
-              tabData.title,
-              null,
-              tabData.closable,
-              tabData.icon,
-              tabData.scrollMode || SCROLL_MODES.ide
-            )
-            tab.setDescriptor(tabData.descriptor)
-            
-            const hydrateCallback = (component, data = {}) => {
-              tab.component = component
-              if (tabData.descriptor.type === 'file-editor') {
-                tab.fileName = tabData.descriptor.resourceId
-                tab.content = data.content || ''
-                tab.originalContent = data.content || ''
-                tab.toolId = tabData.descriptor.toolId
-                tab.onContentChange = (newContent) => this._handleContentChange(tabData.id, newContent)
-                tab.onDirtyStateChange = (isDirty) => this._handleDirtyState(tabData.id, isDirty)
-              }
+      this.closeAllTabs()
+      
+      const allTabsData = this._collectTabsFromLayout(layoutData.layout)
+      
+      const restoredTabs = new Map()
+      
+      for (const tabData of allTabsData) {
+        if (tabData.descriptor) {
+          
+          const tab = new Tab(
+            tabData.id,
+            tabData.title,
+            null,
+            tabData.closable,
+            tabData.icon,
+            tabData.scrollMode || SCROLL_MODES.ide
+          )
+          tab.setDescriptor(tabData.descriptor)
+          
+          const hydrateCallback = (component, data = {}) => {
+            tab.component = component
+            if (tabData.descriptor.type === 'file-editor') {
+              tab.fileName = tabData.descriptor.resourceId
+              tab.content = data.content || ''
+              tab.originalContent = data.content || ''
+              tab.toolId = tabData.descriptor.toolId
+              tab.onContentChange = (newContent) => this._handleContentChange(tabData.id, newContent)
+              tab.onDirtyStateChange = (isDirty) => this._handleDirtyState(tabData.id, isDirty)
             }
-            
-            restoredTabs.set(tabData.id, tab)
-            
-            pendingHydrations.push({
-              descriptor: tabData.descriptor,
-              tabId: tabData.id,
-              hydrateCallback: hydrateCallback,
-              userId: user.email
-            })
           }
+          
+          restoredTabs.set(tabData.id, tab)
+          
+          pendingHydrations.push({
+            descriptor: tabData.descriptor,
+            tabId: tabData.id,
+            hydrateCallback: hydrateCallback,
+            userId: user.email
+          })
         }
-        
-        const restoredLayout = this._reconstructLayout(layoutData.layout, restoredTabs)
+      }
+      
+      const restoredLayout = this._reconstructLayout(layoutData.layout, restoredTabs)
 
-        // Si la racine est un tabgroup et qu'aucun actif n'est défini, activer le premier onglet
-        if (restoredLayout?.type === 'tabgroup' && !restoredLayout.activeTab && restoredLayout.tabs.length > 0) {
-          restoredLayout.activeTab = restoredLayout.tabs[0].id
-        }
-        
-        layoutService.layout = restoredLayout
-        this._lastRestoredUserKey = userKey
-        
-        // Restaurer le focus global si disponible
-        if (layoutData.layout.globalFocusedTab) {
-          layoutService.restoreGlobalFocus(layoutData.layout.globalFocusedTab)
-        }
+      if (!restoredLayout) {
+        logger.warn('IdeStore: restauration de layout impossible, réinitialisation appliquée', {
+          storageKey,
+          user: userKey
+        })
+        await this._handleCorruptedLayout(storageKey, userKey)
+        return
+      }
+
+      // Si la racine est un tabgroup et qu'aucun actif n'est défini, activer le premier onglet
+      if (restoredLayout?.type === 'tabgroup' && !restoredLayout.activeTab && Array.isArray(restoredLayout.tabs) && restoredLayout.tabs.length > 0) {
+        restoredLayout.activeTab = restoredLayout.tabs[0].id
+      }
+      
+      layoutService.layout = restoredLayout
+      this._lastRestoredUserKey = userKey
+      
+      // Restaurer le focus global si disponible
+      if (layoutData.layout.globalFocusedTab) {
+        layoutService.restoreGlobalFocus(layoutData.layout.globalFocusedTab)
       }
       
       // Restaurer tous les états via le service de fournisseurs
@@ -665,9 +687,37 @@ class IdeStore {
     }
   }
 
+  _isValidLayoutNode(node) {
+    if (!node || typeof node !== 'object') {
+      return false
+    }
+    if (node.type === 'tabgroup') {
+      return Array.isArray(node.tabs)
+    }
+    if (node.type === 'container') {
+      return Array.isArray(node.children) && node.children.every(child => this._isValidLayoutNode(child))
+    }
+    return false
+  }
+
+  async _handleCorruptedLayout(storageKey, userKey) {
+    try {
+      await this.layoutPersister.remove(storageKey)
+    } catch (error) {
+      logger.warn('IdeStore: impossible de supprimer le layout corrompu', error)
+    }
+    this.resetLayout()
+    this._lastRestoredUserKey = userKey || null
+  }
+
   _reconstructLayout(layoutData, tabsMap) {
+    if (!layoutData || typeof layoutData !== 'object') {
+      return null
+    }
     if (layoutData.type === 'tabgroup') {
-      const tabs = layoutData.tabs.map(tabData => tabsMap.get(tabData.id)).filter(Boolean)
+      const tabs = Array.isArray(layoutData.tabs)
+        ? layoutData.tabs.map(tabData => tabsMap.get(tabData?.id)).filter(Boolean)
+        : []
       const activeTab = tabs.find(tab => tab.id === layoutData.activeTab)
         ? layoutData.activeTab
         : (tabs[0]?.id ?? null)
@@ -679,10 +729,12 @@ class IdeStore {
     } else if (layoutData.type === 'container') {
       return {
         ...layoutData,
-        children: layoutData.children.map(child => this._reconstructLayout(child, tabsMap))
+        children: Array.isArray(layoutData.children)
+          ? layoutData.children.map(child => this._reconstructLayout(child, tabsMap)).filter(Boolean)
+          : []
       }
     }
-    return layoutData
+    return null
   }
 
   async saveUserLayout() {
