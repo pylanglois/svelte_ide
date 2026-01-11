@@ -131,11 +131,11 @@ function getUserInitial(user) {
   position: absolute;
   top: 100%;
   right: 0;
-  background: var(--surface);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 8px 0;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-menu);
   z-index: 10;
   min-width: 200px;
   margin-top: 4px;
@@ -154,7 +154,7 @@ function getUserInitial(user) {
 
 .side-user-provider {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
@@ -170,11 +170,15 @@ function getUserInitial(user) {
 }
 
 .side-menu-item:hover {
-  background: rgba(0, 0, 0, 0.06);
+  background: var(--surface-hover);
 }
 
 .side-auth-status {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-muted);
+}
+
+.side-user-button:hover {
+  background: var(--surface-hover);
 }
 </style>

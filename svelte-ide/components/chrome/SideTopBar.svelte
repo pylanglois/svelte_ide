@@ -1,5 +1,5 @@
 <script>
-let { branding = null, authComponent = null, authProps = {} } = $props()
+let { branding = null, rightComponent = null, rightProps = {} } = $props()
 
 let brandingComponent = $state(null)
 let brandingProps = $state({})
@@ -20,8 +20,8 @@ $effect(() => {
   </div>
 
   <div class="side-top-right">
-    {#if authComponent}
-      {@render authComponent(authProps)}
+    {#if rightComponent}
+      {@render rightComponent(rightProps)}
     {/if}
   </div>
 </div>
