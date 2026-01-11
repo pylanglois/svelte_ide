@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Launch MVP Explorateur",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/explorer",
+      "preLaunchTask": "npm: dev - explorer",
+      "serverReadyAction": {
+        "pattern": "Local:.+(https?://[^\\s]+)",
+        "uriFormat": "%s",
+        "action": "openExternally"
+      }
+    },
+    {
+      "type": "chrome",
+      "request": "attach",
+      "name": "Attach to Chrome",
+      "port": 9222,
+      "webRoot": "${workspaceFolder}/explorer",
+      "urlFilter": "http://localhost:5173/*"
+    }
+  ],
+  "compounds": []
+}

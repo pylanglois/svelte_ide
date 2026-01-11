@@ -1,0 +1,40 @@
+{
+  "root": true,
+  "extends": [
+    "eslint:recommended"
+  ],
+  "plugins": ["svelte"],
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module"
+  },
+  "env": {
+    "browser": true,
+    "es2022": true,
+    "node": true
+  },
+  "overrides": [
+    {
+      "files": ["*.svelte"],
+      "parser": "svelte-eslint-parser",
+      "rules": {
+        "no-undef": "off",
+        "svelte/valid-compile": "error"
+      }
+    },
+    {
+      "files": ["*.svelte.js"],
+      "globals": {
+        "$state": "readonly",
+        "$derived": "readonly",
+        "$effect": "readonly",
+        "$props": "readonly",
+        "$bindable": "readonly",
+        "$inspect": "readonly"
+      }
+    }
+  ],
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }]
+  }
+}

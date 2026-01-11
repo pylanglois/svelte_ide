@@ -1,0 +1,25 @@
+{
+  "name": "@svelte-ide/core",
+  "version": "0.1.0",
+  "description": "SIDE (Svelte-IDE) - Enterprise-grade Svelte 5 IDE framework",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/svelte-ide/svelte-ide.git"
+  },
+  "keywords": [
+    "svelte",
+    "svelte5",
+    "ide",
+    "framework",
+    "side",
+    "svelte-ide"
+  ],
+  "peerDependencies": {
+    "svelte": "^5.0.0"
+  }
+}

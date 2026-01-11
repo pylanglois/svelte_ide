@@ -1,0 +1,26 @@
+{
+  "name": "svelte-ide-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "svelte-ide",
+    "explorer"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w explorer",
+    "build": "npm run build -w explorer",
+    "dev:side": "npm run dev -w svelte-ide",
+    "build:side": "npm run build -w svelte-ide",
+    "lint": "eslint . --ext .js,.svelte",
+    "lint:fix": "eslint . --ext .js,.svelte --fix",
+    "check": "./.pre-commit-check.sh",
+    "validate": "npm run check && npm run lint",
+    "assemble:ai": "./.ai/assemble.sh"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-plugin-svelte": "^2.35.1",
+    "svelte-eslint-parser": "^0.43.0"
+  }
+}
