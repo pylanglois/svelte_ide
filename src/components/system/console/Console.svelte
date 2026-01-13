@@ -15,6 +15,10 @@
     ideStore.clearConsoleTab(tabId)
   }
 
+  function closeAllTabs() {
+    ideStore.closeAllConsoleTabs()
+  }
+
   function getLogClass(type) {
     switch (type) {
       case 'error': return 'log-error'
@@ -101,6 +105,15 @@
             </div>
           {/each}
         </div>
+        <button
+          class="close-all-tabs-btn"
+          onclick={closeAllTabs}
+          title="Fermer tous les onglets"
+          aria-label="Fermer tous les onglets"
+          type="button"
+        >
+          Fermer tout
+        </button>
       {/if}
     </div>
       
@@ -175,6 +188,7 @@
     overflow-x: auto;
     scrollbar-width: none;
     gap: 0;
+    min-width: 0;
   }
 
   .console-tab-bar::-webkit-scrollbar {
@@ -239,6 +253,23 @@
 
   .clear-tab-btn:hover, .close-tab-btn:hover {
     background: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+
+  .close-all-tabs-btn {
+    background: transparent;
+    border: 1px solid #3e3e42;
+    color: #cccccc;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+    height: 22px;
+  }
+
+  .close-all-tabs-btn:hover {
+    background: #3e3e42;
     color: white;
   }
 

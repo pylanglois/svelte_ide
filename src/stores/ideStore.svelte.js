@@ -288,6 +288,11 @@ class IdeStore {
     }
   }
 
+  closeAllConsoleTabs() {
+    this.consoleTabs = []
+    this.activeConsoleTab = null
+  }
+
   clearConsoleTab(tabId) {
     const tab = this.consoleTabs.find(tab => tab.id === tabId)
     if (tab) {
