@@ -1,5 +1,4 @@
 <script>
-import { themeService } from '../core/themeService.svelte.js'
 import SideContainer from './SideContainer.svelte'
 import SideTopBar from './chrome/SideTopBar.svelte'
 import SideTopBarActions from './chrome/SideTopBarActions.svelte'
@@ -7,23 +6,7 @@ import SideTopBarActions from './chrome/SideTopBarActions.svelte'
 let { capabilities = [], branding = null } = $props()
 </script>
 
-<div
-  class="side-app-shell"
-  style:--background={themeService.getColor('background')}
-  style:--surface={themeService.getColor('surface')}
-  style:--surface-alt={themeService.getColor('surfaceAlt')}
-  style:--surface-raised={themeService.getColor('surfaceRaised')}
-  style:--surface-hover={themeService.getColor('surfaceHover')}
-  style:--text={themeService.getColor('text')}
-  style:--text-muted={themeService.getColor('textMuted')}
-  style:--text-on-primary={themeService.getColor('textOnPrimary')}
-  style:--border={themeService.getColor('border')}
-  style:--border-strong={themeService.getColor('borderStrong')}
-  style:--primary={themeService.getColor('primary')}
-  style:--danger={themeService.getColor('danger')}
-  style:--shadow={themeService.getShadow('md')}
-  style:--shadow-menu={themeService.getShadow('menu')}
->
+<div class="side-app-shell">
   <SideTopBar {branding} rightComponent={SideTopBarActions} />
 
   <div class="side-main">

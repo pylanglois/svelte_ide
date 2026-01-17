@@ -36,6 +36,30 @@ let x = $derived(service.get())           // Non-reactive service
 let count = $state(0)
 $effect(() => { count++ })                 // Infinite loop
 $effect(() => { subscribe() })             // No cleanup
+
+// ❌ $effect in .svelte.js module (effect_orphan error)
+// File: myService.svelte.js
+$effect(() => { doSomething() })           // No component context!
+```
+
+## .svelte.js Modules
+
+**Allowed at module level:**
+- `$state` ✅
+- `$derived` ✅
+
+**Forbidden at module level:**
+- `$effect` ❌ → requires component lifecycle
+
+**Alternative:** Call side effects directly in functions:
+```javascript
+// myService.svelte.js
+let mode = $state('dark')
+
+function setMode(next) {
+  mode = next
+  applyChanges()  // ✅ Direct call, no $effect
+}
 ```
 
 **6. Post-Code Validation:**
